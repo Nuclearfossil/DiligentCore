@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -34,7 +34,8 @@ namespace Diligent
     enum class DeviceType : Int32
     {
         Undefined = 0,  ///< Undefined device
-        DirectX,    ///< DirectX device
+        D3D11,      ///< D3D11 device
+        D3D12,      ///< D3D12 device
         OpenGL,     ///< OpenGL device 
         OpenGLES    ///< OpenGLES device
     };

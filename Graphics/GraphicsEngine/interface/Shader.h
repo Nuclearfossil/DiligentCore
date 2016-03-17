@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -72,8 +72,8 @@ enum SHADER_SOURCE_LANGUAGE : Int32
 /// and IDeviceContext::BindShaderResources().
 enum BIND_SHADER_RESOURCES_FLAGS : Int32
 {
-    /// Reset all bindings. If this specified, all existing bindings will be
-    /// broken. By default all existing bindings are presereved.
+    /// Reset all bindings. If this flag is specified, all existing bindings will be
+    /// broken. By default all existing bindings are preserved.
     BIND_SHADER_RESOURCES_RESET_BINDINGS = 0x01,
 
     /// If this flag is specified, only unresolved bindings will be updated.
@@ -84,8 +84,38 @@ enum BIND_SHADER_RESOURCES_FLAGS : Int32
 
     /// If this flag is specified, all shader bindings are expected
     /// to be resolved after the call. If this is not the case, debug error 
-    /// will be output.
+    /// will be displayed.
     BIND_SHADER_RESOURCES_ALL_RESOLVED = 0x04
+};
+
+enum SHADER_VARIABLE_TYPE
+{
+    /// Shader variable is constant across all shader instances.
+    /// It must be set *once* directly through IShader::BindResources() or through 
+    /// the shader variable.
+    SHADER_VARIABLE_TYPE_STATIC = 0, 
+
+    /// Shader variable is constant across shader resource bindings instance (see IShaderResourceBinding).
+    /// It must be set *once* through IShaderResourceBinding::BindResources() or through
+    /// the shader variable. It cannot be set through IShader interface
+    SHADER_VARIABLE_TYPE_MUTABLE,
+
+    /// Shader variable is dynamic. It can be set multiple times for every instance of shader resource 
+    /// bindings (see IShaderResourceBinding). It cannot be set through IShader interface
+    SHADER_VARIABLE_TYPE_DYNAMIC,
+
+    /// Total number of shader variable types
+    SHADER_VARIABLE_TYPE_NUM_TYPES
+};
+
+struct ShaderVariableDesc
+{
+    const char *Name;
+    SHADER_VARIABLE_TYPE Type;
+    ShaderVariableDesc(const char *_Name = nullptr, SHADER_VARIABLE_TYPE _Type = SHADER_VARIABLE_TYPE_STATIC) : 
+        Name(_Name),
+        Type(_Type)
+    {}
 };
 
 /// Shader description
@@ -96,11 +126,17 @@ struct ShaderDesc : DeviceObjectAttribs
 
     Bool bCacheCompiledShader;
     SHADER_PROFILE TargetProfile;
+    SHADER_VARIABLE_TYPE DefaultVariableType;
+    const ShaderVariableDesc *VariableDesc;
+    Uint32 NumVariables;
 
     ShaderDesc() : 
         ShaderType(SHADER_TYPE_VERTEX),
         bCacheCompiledShader(False),
-        TargetProfile(SHADER_PROFILE_DEFAULT)
+        TargetProfile(SHADER_PROFILE_DEFAULT),
+        DefaultVariableType(SHADER_VARIABLE_TYPE_STATIC),
+        VariableDesc(nullptr),
+        NumVariables(0)
     {}
 };
 
@@ -169,13 +205,6 @@ public:
     ///         For instance, shader resource view cannot
     ///         be assigned to a constant buffer variable.
     virtual void Set(IDeviceObject *pObject) = 0;
-
-    /// Returns the shader which this shader variable
-    /// belongs to
-
-    /// \remark The method does not increment the reference counter
-    ///         of the returned interface.
-    virtual class IShader* GetShader() = 0;
 };
 
 /// Shader interface

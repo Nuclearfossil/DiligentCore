@@ -21,12 +21,12 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)..\..\..\src\ResourceMapping.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\..\src\EngineMemory.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\DeviceObjectBase.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\RasterizerStateBase.h">
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\RenderDeviceBase.h">
@@ -53,12 +53,6 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\TextureViewBase.h">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\VertexDescriptionBase.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\BlendStateBase.h">
-      <Filter>include</Filter>
-    </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\BufferBase.h">
       <Filter>include</Filter>
     </ClInclude>
@@ -66,9 +60,6 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\Defines.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\DepthStencilStateBase.h">
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\DeviceContextBase.h">
@@ -110,9 +101,6 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\TextureView.h">
       <Filter>interface</Filter>
     </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\VertexDescription.h">
-      <Filter>interface</Filter>
-    </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\BlendState.h">
       <Filter>interface</Filter>
     </ClInclude>
@@ -134,5 +122,32 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\GraphicsTypes.h">
       <Filter>interface</Filter>
     </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\PipelineState.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\PipelineStateBase.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\InputLayout.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\ShaderResourceBinding.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\ShaderResourceBindingBase.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\EngineMemory.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\CommandList.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\CommandListBase.h">
+      <Filter>include</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="$(MSBuildThisFileDirectory)..\..\..\CMakeLists.txt" />
   </ItemGroup>
 </Project>

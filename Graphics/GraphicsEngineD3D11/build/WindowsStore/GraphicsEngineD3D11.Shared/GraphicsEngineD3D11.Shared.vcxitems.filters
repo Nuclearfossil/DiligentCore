@@ -12,13 +12,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\DepthStencilStateD3D11.h">
-      <Filter>interface</Filter>
-    </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\DeviceContextD3D11.h">
-      <Filter>interface</Filter>
-    </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\RasterizerStateD3D11.h">
       <Filter>interface</Filter>
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\RenderDeviceD3D11.h">
@@ -39,23 +33,8 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\TextureViewD3D11.h">
       <Filter>interface</Filter>
     </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\VertexDescriptionD3D11.h">
-      <Filter>interface</Filter>
-    </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\BlendStateD3D11.h">
-      <Filter>interface</Filter>
-    </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\BufferD3D11.h">
-      <Filter>interface</Filter>
-    </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\BufferViewD3D11.h">
       <Filter>interface</Filter>
-    </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\DSStateD3D11Impl.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\RasterizerStateD3D11Impl.h">
-      <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\RenderDeviceD3D11Impl.h">
       <Filter>include</Filter>
@@ -79,12 +58,6 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\TextureViewD3D11Impl.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\VertexDescD3D11Impl.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\BlendStateD3D11Impl.h">
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\BufferD3D11Impl.h">
@@ -114,7 +87,37 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\D3D11DebugUtilities.h">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\D3DErrors.h">
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\PipelineStateD3D11Impl.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\PipelineStateD3D11.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\BufferD3D11.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\D3D11TypeDefinitions.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\ShaderResourceBindingD3D11Impl.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\ShaderResourceBindingD3D11.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\ShaderResourceCacheD3D11.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\ShaderResourceLayoutD3D11.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\interface\EngineD3D11Attribs.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\EngineD3D11Defines.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\CommandListD3D11Impl.h">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
@@ -143,12 +146,6 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)..\..\..\src\TextureViewD3D11Impl.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\..\src\VertexDescD3D11Impl.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\..\src\BlendStateD3D11Impl.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="$(MSBuildThisFileDirectory)..\..\..\src\BufferD3D11Impl.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -159,12 +156,6 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="$(MSBuildThisFileDirectory)..\..\..\src\DeviceContextD3D11Impl.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\..\src\DSStateD3D11Impl.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\..\src\RasterizerStateD3D11Impl.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="$(MSBuildThisFileDirectory)..\..\..\src\pch.cpp">
@@ -182,6 +173,21 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)..\..\..\src\DLLMain.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\..\src\PipelineStateD3D11Impl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\..\src\ShaderResourceBindingD3D11Impl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\..\src\ShaderResourceCacheD3D11.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\..\src\ShaderResourceLayoutD3D11.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\..\src\CommandListD3D11Impl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)..\..\..\src\GraphicsEngineD3D11.def">
@@ -189,8 +195,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="$(MSBuildThisFileDirectory)..\..\..\include\HLSLDefinitions.fxh">
-      <Filter>include</Filter>
-    </CustomBuild>
+    <Text Include="$(MSBuildThisFileDirectory)..\..\..\CMakeLists.txt" />
   </ItemGroup>
 </Project>

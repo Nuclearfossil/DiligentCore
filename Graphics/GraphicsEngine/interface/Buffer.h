@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -148,7 +148,7 @@ struct BufferDesc : DeviceObjectAttribs
 struct BufferData
 {
     /// Pointer to the data
-    PVoid pData;
+    const void* pData;
 
     /// Data size, in bytes
     Uint32 DataSize;

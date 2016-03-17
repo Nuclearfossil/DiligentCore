@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -30,16 +30,24 @@
 #include "BaseInterfacesGL.h"
 #include "BufferViewGLImpl.h"
 
+
 namespace Diligent
 {
 
+class FixedBlockMemoryAllocator;
+
 /// Implementation of the Diligent::IBufferGL interface
-class BufferGLImpl : public BufferBase<IBufferGL, BufferViewGLImpl>, public AsyncWritableResource
+class BufferGLImpl : public BufferBase<IBufferGL, BufferViewGLImpl, FixedBlockMemoryAllocator, FixedBlockMemoryAllocator>, public AsyncWritableResource
 {
 public:
-    typedef BufferBase<IBufferGL, BufferViewGLImpl> TBufferBase;
+    typedef BufferBase<IBufferGL, BufferViewGLImpl, FixedBlockMemoryAllocator, FixedBlockMemoryAllocator> TBufferBase;
 
-    BufferGLImpl(class RenderDeviceGLImpl *pDeviceGL, const BufferDesc& BuffDesc, const BufferData &BuffData = BufferData(), bool IsDeviceInternal = false);
+    BufferGLImpl(FixedBlockMemoryAllocator &BufferObjMemAllocator, 
+                 FixedBlockMemoryAllocator &BuffViewObjMemAllocator, 
+                 class RenderDeviceGLImpl *pDeviceGL, 
+                 const BufferDesc& BuffDesc, 
+                 const BufferData &BuffData = BufferData(), 
+                 bool IsDeviceInternal = false);
     ~BufferGLImpl();
     
     /// Queries the specific interface, see IObject::QueryInterface() for details

@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ namespace Diligent
     {
     }
 
-    IMPLEMENT_QUERY_INTERFACE( ResourceMappingImpl, IID_ResourceMapping, ObjectBase<IResourceMapping> )
+    IMPLEMENT_QUERY_INTERFACE( ResourceMappingImpl, IID_ResourceMapping, TObjectBase )
 
     ThreadingTools::LockHelper ResourceMappingImpl::Lock()
     {
@@ -75,7 +75,7 @@ namespace Diligent
         auto LockHelper = Lock();
         // Remove object with the given name
         // Name will be implicitly converted to HashMapStringKey without making a copy
-        auto It = m_HashTable.erase( Name );
+        m_HashTable.erase( Name );
     }
 
     void ResourceMappingImpl::RemoveResource( IDeviceObject *pObject )

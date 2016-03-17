@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@
 #include "DeviceCaps.h"
 #include "Constants.h"
 #include "Buffer.h"
-#include "VertexDescription.h"
+#include "InputLayout.h"
 #include "Shader.h"
 #include "Texture.h"
 #include "Sampler.h"
@@ -39,6 +39,8 @@
 #include "BufferView.h"
 #include "DepthStencilState.h"
 #include "BlendState.h"
+#include "PipelineState.h"
+#include "CommandList.h"
 
 namespace Diligent
 {
@@ -304,25 +306,27 @@ public:
     /// Queries the specific interface, see IObject::QueryInterface() for details
     virtual void QueryInterface( const Diligent::INTERFACE_ID &IID, IObject **ppInterface ) = 0;
 
-    /// Binds shaders to the pipeline
+    /// Sets the pipeline state
 
-    /// \param [in] ppShaders - Array of pointers to IShader interface.
-    /// \param [in] NumShadersToSet - Number of shaders to bind.
-    /// \remarks All shaders must be set atomically. All shaders that are not specified
-    ///          in a call to SetShaders() will be unbound.\n
-    ///          The device context keeps strong references to all bound shaders.
-    ///          Thus a shader cannot be released until it is unbound from the context.
-    virtual void SetShaders(IShader **ppShaders, Uint32 NumShadersToSet) = 0;
+    /// \param [in] pPipelineState - Pointer to IPipelineState interface.
+    virtual void SetPipelineState(IPipelineState *pPipelineState) = 0;
 
-    /// Binds resources for all shaders bound to the pipeline
 
-    /// \param [in] pResourceMapping - Pointer to the resource mapping interface.
-    /// \param [in] Flags - Additional flags. See Diligent::BIND_SHADER_RESOURCES_FLAGS.
-    /// \remarks This function is intended to be used with older OpenGL devices that
-    ///          do not support program pipelines (OpenGL4.1-, OpenGLES3.0-).\n
-    ///          The function should be called AFTER all the required shaders are bound to the
-    ///          context. It should also be called for every shader combination.
-    virtual void BindShaderResources( IResourceMapping *pResourceMapping, Uint32 Flags ) = 0;
+    virtual void CommitShaderResources(IShaderResourceBinding *pShaderResourceBinding) = 0;
+
+    /// Sets the stencil reference value
+
+    /// \param [in] StencilRef - Stencil reference value.
+    virtual void SetStencilRef(Uint32 StencilRef) = 0;
+
+    
+    /// \param [in] pBlendFactors - Array of four blend factors, one for each RGBA component. 
+    ///                             Theses factors are used if the blend state uses one of the 
+    ///                             Diligent::BLEND_FACTOR_BLEND_FACTOR or 
+    ///                             Diligent::BLEND_FACTOR_INV_BLEND_FACTOR 
+    ///                             blend factors. If nullptr is provided,
+    ///                             default blend factors array {1,1,1,1} will be used.
+    virtual void SetBlendFactors(const float* pBlendFactors = nullptr) = 0;
 
 
     /// Binds vertex buffers to the pipeline.
@@ -337,7 +341,7 @@ public:
     ///                         in the vertex-buffer array. Each stride is the size (in bytes) of the 
     ///                         elements that are to be used from that vertex buffer.
     ///                         If this parameter is nullptr, tight strides from the input layout
-    ///                         will be used for each buffer. See IVertexDescription::GetTightStrides().
+    ///                         will be used for each buffer. See IPipelineState::GetTightStrides().
     /// \param [in] pOffsets  - Pointer to an array of offset values; one offset value for each buffer 
     ///                         in the vertex-buffer array. Each offset is the number of bytes between 
     ///                         the first element of a vertex buffer and the first element that will be 
@@ -359,14 +363,6 @@ public:
     /// Clears the context state.
     virtual void ClearState() = 0;
 
-    /// Sets vertex description
-    
-    /// \param [in] pVertexDesc - Pointer to IVertexDescription interface that describes
-    ///                           how to read data from input vertex buffers.
-    /// \remarks The device context keeps strong reference to the vertex description.
-    ///          Thus a vertex description object cannot be released until it is unbound 
-    ///          from the context.
-    virtual void SetVertexDescription(IVertexDescription *pVertexDesc) = 0;
 
     /// Binds an index buffer to the pipeline
     
@@ -380,42 +376,6 @@ public:
     virtual void SetIndexBuffer(IBuffer *pIndexBuffer, Uint32 ByteOffset) = 0;
 
 
-    /// Sets the depth stencil state
-
-    /// \param [in] pDepthStencilState - Pointer to the IDepthStencilState interface holding the state
-    /// \param [in] StencilRef - Stencil reference value used in stencil operations.
-    ///                         See DepthStencilStateDesc.
-    /// \remarks The device context keeps strong reference to the bound depth-stencil state.
-    ///          Thus a depth-stencil state object cannot be released until it is unbound 
-    ///          from the context.
-    virtual void SetDepthStencilState( IDepthStencilState *pDepthStencilState, Uint32 StencilRef = 0 ) = 0;
-
-    /// Sets the rasterizer state
-
-    /// \param [in] pRS - Pointer to the IRasterizerState interface holding the state
-    /// \remarks The device context keeps strong reference to the bound rasterizer state.
-    ///          Thus a rasterizer state object cannot be released until it is unbound 
-    ///          from the context.
-    virtual void SetRasterizerState( IRasterizerState *pRS ) = 0;
-
-    /// Sets the blend state
-
-    /// \param [in] pBS - Pointer to the IBlendState interface holding the state
-    /// \param [in] pBlendFactors - Array of four blend factors, one for each RGBA component. 
-    ///                             Theses factors are used if the blend state uses one of the 
-    ///                             Diligent::BLEND_FACTOR_BLEND_FACTOR or 
-    ///                             Diligent::BLEND_FACTOR_INV_BLEND_FACTOR 
-    ///                             blend factors. If nullptr is provided,
-    ///                             default blend factors array {1,1,1,1} will be used.
-    /// \param [in] SampleMask -    32-bit sample mask that determines which samples get updated 
-    ///                             in all the active render targets. A sample mask is always applied; 
-    ///                             it is independent of whether multisampling is enabled, and does not 
-    ///                             depend on whether an application uses multisample render targets.
-    /// \remarks The device context keeps strong reference to the bound blend state.
-    ///          Thus a blend state object cannot be released until it is unbound 
-    ///          from the context.
-    virtual void SetBlendState( IBlendState *pBS, const float* pBlendFactors = nullptr, Uint32 SampleMask = 0xFFFFFFFF ) = 0;
-    
     /// Sets an array of viewports
 
     /// \param [in] NumViewports - Number of viewports to set.
@@ -502,6 +462,12 @@ public:
     /// \remarks The full extent of the view is always cleared. Viewport and scissor settings are not applied.
     /// \note The render target view must be bound to the pipeline for clear operation to be performed.
     virtual void ClearRenderTarget( ITextureView *pView, const float *RGBA = nullptr ) = 0;
+
+    // Finishes recording commands and generates a command list
+    virtual void FinishCommandList(class ICommandList **ppCommandList) = 0;
+
+    // Executes recorded commands in a command list
+    virtual void ExecuteCommandList(class ICommandList *pCommandList) = 0;
 
     /// Flushes the command buffer
     virtual void Flush() = 0;

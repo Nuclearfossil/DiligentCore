@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 #include "RenderDeviceGLImpl.h"
 #include "DeviceContextGLImpl.h"
 #include "SwapChainGLImpl.h"
+#include "EngineMemory.h"
 
 #ifdef PLATFORM_ANDROID
     #include "RenderDeviceGLESImpl.h"
@@ -55,33 +56,35 @@ void CreateDeviceAndSwapChainGL( const EngineCreationAttribs& CreationAttribs,
     if( !ppDevice || !ppImmediateContext || !ppSwapChain )
         return;
 
+    SetRawAllocator(CreationAttribs.pRawMemAllocator);
+
     *ppDevice = nullptr;
     *ppImmediateContext = nullptr;
     *ppSwapChain = nullptr;
 
     try
     {
+        auto &RawMemAllocator = GetRawAllocator();
+
         ContextInitInfo InitInfo;
         InitInfo.pNativeWndHandle = pNativeWndHandle;
         InitInfo.SwapChainAttribs = SwapChainDesc;
-        RenderDeviceGLImpl *pRenderDeviceOpenGL( new TRenderDeviceGLImpl( InitInfo ) );
+        RenderDeviceGLImpl *pRenderDeviceOpenGL( NEW(RawMemAllocator, "TRenderDeviceGLImpl instance", TRenderDeviceGLImpl, InitInfo ) );
         pRenderDeviceOpenGL->QueryInterface(IID_RenderDevice, reinterpret_cast<IObject**>(ppDevice) );
 
-        DeviceContextGLImpl *pDeviceContextOpenGL( new DeviceContextGLImpl( pRenderDeviceOpenGL ) );
+        DeviceContextGLImpl *pDeviceContextOpenGL( NEW(RawMemAllocator, "DeviceContextGLImpl instance", DeviceContextGLImpl, pRenderDeviceOpenGL, false ) );
         // We must call AddRef() (implicitly through QueryInterface()) because pRenderDeviceOpenGL will
         // keep a weak reference to the context
         pDeviceContextOpenGL->QueryInterface(IID_DeviceContext, reinterpret_cast<IObject**>(ppImmediateContext) );
         pRenderDeviceOpenGL->SetImmediateContext(pDeviceContextOpenGL);
 
-        SwapChainGLImpl *pSwapChainGL = new SwapChainGLImpl(SwapChainDesc, pRenderDeviceOpenGL, pDeviceContextOpenGL );
+        SwapChainGLImpl *pSwapChainGL = NEW(RawMemAllocator, "SwapChainGLImpl instance", SwapChainGLImpl, SwapChainDesc, pRenderDeviceOpenGL, pDeviceContextOpenGL );
         pSwapChainGL->QueryInterface(IID_SwapChain, reinterpret_cast<IObject**>(ppSwapChain) );
 
         pDeviceContextOpenGL->SetSwapChain(pSwapChainGL);
         // Bind default framebuffer and viewport
         pDeviceContextOpenGL->SetRenderTargets( 0, nullptr, nullptr );
         pDeviceContextOpenGL->SetViewports( 1, nullptr, 0, 0 );
-
-        pDeviceContextOpenGL->CreateDefaultStates();
     }
     catch( const std::runtime_error & )
     {

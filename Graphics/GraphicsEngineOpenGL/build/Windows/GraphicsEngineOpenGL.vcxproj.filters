@@ -41,9 +41,6 @@
     <ClInclude Include="..\..\include\GLObjectWrapper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\ProgramPipelineCache.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\GLTypeConversions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -83,9 +80,6 @@
     <ClInclude Include="..\..\include\BufferViewGLImpl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\DSStateGLImpl.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\SamplerGLImpl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -93,9 +87,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\TextureBaseGL.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\VertexDescGLImpl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\RenderDeviceGLImpl.h">
@@ -119,9 +110,6 @@
     <ClInclude Include="..\..\interface\BufferViewGL.h">
       <Filter>Interface</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\interface\DepthStencilStateGL.h">
-      <Filter>Interface</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\interface\SamplerGL.h">
       <Filter>Interface</Filter>
     </ClInclude>
@@ -137,25 +125,10 @@
     <ClInclude Include="..\..\include\TextureViewGLImpl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\interface\VertexDescriptionGL.h">
-      <Filter>Interface</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\interface\DeviceContextGL.h">
       <Filter>Interface</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\DeviceContextGLImpl.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\RasterizerStateGLImpl.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\interface\RasterizerStateGL.h">
-      <Filter>Interface</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\interface\BlendStateGL.h">
-      <Filter>Interface</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\BlendStateGLImpl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\FBOCache.h">
@@ -182,15 +155,27 @@
     <ClInclude Include="..\..\include\TexRegionRender.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\interface\PipelineStateGL.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\PipelineStateGLImpl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\interface\ShaderResourceBindingGL.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ShaderResourceBindingGLImpl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\GLProgramResources.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\VAOCache.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\GLObjectWrapper.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ProgramPipelineCache.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\GLTypeConversions.cpp">
@@ -232,9 +217,6 @@
     <ClCompile Include="..\..\src\BufferViewGLImpl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\DSStateGLImpl.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\SamplerGLImpl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -242,9 +224,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\TextureBaseGL.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\VertexDescGLImpl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\RenderDeviceGLImpl.cpp">
@@ -257,12 +236,6 @@
       <Filter>Source Files\Android</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\DeviceContextGLImpl.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\RasterizerStateGLImpl.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\BlendStateGLImpl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\FBOCache.cpp">
@@ -286,6 +259,15 @@
     <ClCompile Include="..\..\src\TexRegionRender.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\PipelineStateGLImpl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ShaderResourceBindingGLImpl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\GLProgramResources.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="jni\Application.mk">
@@ -302,5 +284,8 @@
     <CustomBuild Include="..\..\include\GLSLDefinitions.h">
       <Filter>Header Files</Filter>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\..\CMakeLists.txt" />
   </ItemGroup>
 </Project>

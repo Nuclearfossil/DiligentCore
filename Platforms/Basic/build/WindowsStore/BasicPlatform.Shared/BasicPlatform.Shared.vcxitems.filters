@@ -33,4 +33,7 @@
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="$(MSBuildThisFileDirectory)..\..\..\CMakeLists.txt" />
+  </ItemGroup>
 </Project>

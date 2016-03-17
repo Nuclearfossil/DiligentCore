@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -35,11 +35,36 @@ namespace Diligent
 static const Diligent::INTERFACE_ID IID_Texture =
 { 0xa64b0e60, 0x1b5e, 0x4cfd, { 0xb8, 0x80, 0x66, 0x3a, 0x1a, 0xdc, 0xbe, 0x98 } };
 
+struct DepthStencilClearValue
+{
+    Float32 Depth;
+    Uint8 Stencil;
+    DepthStencilClearValue() : 
+        Depth(1.f),
+        Stencil(0)
+    {}
+};
+
+struct OptimizedClearValue
+{
+    TEXTURE_FORMAT Format;
+    Float32 Color[ 4 ];
+    DepthStencilClearValue DepthStencil;
+    OptimizedClearValue() : 
+        Format(TEX_FORMAT_UNKNOWN)
+    {
+        Color[0] = 0;
+        Color[1] = 0;
+        Color[2] = 0;
+        Color[3] = 0;
+    }
+};
+
 /// Texture description
 struct TextureDesc : DeviceObjectAttribs
 {
-    /// Texture type. See Diligent::TEXTURE_TYPE for details.
-    TEXTURE_TYPE Type;
+    /// Texture type. See Diligent::RESOURCE_DIMENSION for details.
+    RESOURCE_DIMENSION Type;
 
     /// Texture width, in pixels.
     Uint32 Width;
@@ -84,12 +109,15 @@ struct TextureDesc : DeviceObjectAttribs
     /// Miscellaneous flags, see Diligent::MISC_TEXTURE_FLAG for details.
     Uint32 MiscFlags;
     
+    /// Optimized clear value
+    OptimizedClearValue ClearValue;
+
     /// Initializes the structure members with default values
 
     /// Default values:
     /// Member          | Default value
     /// ----------------|--------------
-    /// Type            | TEXTURE_TYPE_UNDEFINED
+    /// Type            | RESOURCE_DIM_UNDEFINED
     /// Width           | 0
     /// Height          | 0
     /// ArraySize       | 1
@@ -101,7 +129,7 @@ struct TextureDesc : DeviceObjectAttribs
     /// CPUAccessFlags  | 0
     /// MiscFlags       | 0
     TextureDesc() : 
-        Type(TEXTURE_TYPE_UNDEFINED),
+        Type(RESOURCE_DIM_UNDEFINED),
         Width(0),
         Height(0),
         ArraySize(1),
@@ -141,6 +169,13 @@ struct TextureSubResData
         pData(nullptr),
         Stride(0),
         DepthStride(0)
+    {}
+    
+    /// Initializes the structure members with provided values
+    TextureSubResData(void *_pData, Uint32 _Stride, Uint32 _DepthStride=0):
+        pData(_pData),
+        Stride(_Stride),
+        DepthStride(_DepthStride)
     {}
 };
 

@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -32,12 +32,14 @@
 namespace Diligent
 {
 
-Texture2D_OGL::Texture2D_OGL( class RenderDeviceGLImpl *pDeviceGL, 
+Texture2D_OGL::Texture2D_OGL( FixedBlockMemoryAllocator& TexObjAllocator, 
+                              FixedBlockMemoryAllocator& TexViewObjAllocator,
+                              class RenderDeviceGLImpl *pDeviceGL, 
                               class DeviceContextGLImpl *pDeviceContext, 
                               const TextureDesc& TexDesc, 
                               const TextureData &InitData /*= TextureData()*/,
 							  bool bIsDeviceInternal /*= false*/) : 
-    TextureBaseGL(pDeviceGL, TexDesc, InitData, bIsDeviceInternal)
+    TextureBaseGL(TexObjAllocator, TexViewObjAllocator, pDeviceGL, TexDesc, InitData, bIsDeviceInternal)
 {
     auto &ContextState = pDeviceContext->GetContextState();
 

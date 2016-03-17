@@ -26,6 +26,9 @@
     <ClInclude Include="..\..\include\WindowsPlatformMisc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\WindowsAtomics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\WindowsFileSystem.cpp">
@@ -37,5 +40,11 @@
     <ClCompile Include="..\..\src\WindowsDebug.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\WindowsAtomics.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\..\CMakeLists.txt" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -24,12 +24,13 @@
 #pragma once
 
 #include "Errors.h"
+#include "EngineD3D11Attribs.h"
 
 extern "C"
 {
 #ifdef ENGINE_DLL
     typedef void (*CreateDeviceAndImmediateContextD3D11Type)( 
-        const Diligent::EngineCreationAttribs& CreationAttribs, 
+        const Diligent::EngineD3D11Attribs& EngineAttribs, 
         Diligent::IRenderDevice **ppDevice, 
         Diligent::IDeviceContext **ppContext );
 
@@ -83,7 +84,7 @@ extern "C"
         }
     }
 #else
-    void CreateDeviceAndImmediateContextD3D11( const Diligent::EngineCreationAttribs& CreationAttribs, 
+    void CreateDeviceAndImmediateContextD3D11( const Diligent::EngineD3D11Attribs& EngineAttribs, 
                                                Diligent::IRenderDevice **ppDevice, 
                                                Diligent::IDeviceContext **ppContext );
     void CreateSwapChainD3D11( Diligent::IRenderDevice *pDevice, 

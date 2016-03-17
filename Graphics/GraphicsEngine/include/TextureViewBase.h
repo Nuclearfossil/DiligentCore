@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -38,20 +38,21 @@ namespace Diligent
 
 /// \tparam BaseInterface - base interface that this class will inheret 
 ///                         (Diligent::ITextureViewD3D11 or Diligent::ITextureViewGL).
-template<class BaseInterface = ITextureView>
-class TextureViewBase : public DeviceObjectBase<BaseInterface, TextureViewDesc>
+template<class BaseInterface, class TexViewObjAllocator>
+class TextureViewBase : public DeviceObjectBase<BaseInterface, TextureViewDesc, TexViewObjAllocator>
 {
 public:
-    typedef DeviceObjectBase<BaseInterface, TextureViewDesc> TDeviceObjectBase;
+    typedef DeviceObjectBase<BaseInterface, TextureViewDesc, TexViewObjAllocator> TDeviceObjectBase;
 
-    TextureViewBase( IRenderDevice *pDevice,
-                      const TextureViewDesc& ViewDesc, 
-                      class ITexture *pTexture,
-                      bool bIsDefaultView ) :
+    TextureViewBase( TexViewObjAllocator &ObjAllocator,
+                     IRenderDevice *pDevice,
+                     const TextureViewDesc& ViewDesc, 
+                     class ITexture *pTexture,
+                     bool bIsDefaultView ) :
         // Default views are created as part of the texture, so we cannot not keep strong 
         // reference to the texture to avoid cyclic links. Instead, we will attach to the 
         // reference counters of the texture.
-        TDeviceObjectBase( pDevice, ViewDesc, bIsDefaultView ? pTexture : nullptr ),
+        TDeviceObjectBase( ObjAllocator, pDevice, ViewDesc, bIsDefaultView ? pTexture : nullptr ),
         m_pTexture( pTexture ),
         // For non-default view, we will keep strong reference to texture
         m_spTexture(bIsDefaultView ? nullptr : pTexture)
@@ -59,18 +60,18 @@ public:
 
     IMPLEMENT_QUERY_INTERFACE_IN_PLACE( IID_TextureView, TDeviceObjectBase )
 
-    virtual void SetSampler( class ISampler *pSampler )
+    virtual void SetSampler( class ISampler *pSampler )override final
     {
         VERIFY( this->m_Desc.ViewType == TEXTURE_VIEW_SHADER_RESOURCE, "Texture view \"", this->m_Desc.Name, "\": A sampler can be attached to a shader resource view only. The view type is ", GetTexViewTypeLiteralName(this->m_Desc.ViewType) );
         m_pSampler = pSampler;
     }
 
-    virtual ISampler* GetSampler()
+    virtual ISampler* GetSampler()override final
     { 
         return m_pSampler; 
     }
     
-    virtual ITexture* GetTexture()
+    virtual ITexture* GetTexture()override final
     {
         return m_pTexture;
     }

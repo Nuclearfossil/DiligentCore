@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -38,11 +38,11 @@ namespace Diligent
 
 /// \tparam BaseInterface - base interface that this class will inheret 
 ///                         (Diligent::IBufferViewD3D11 or Diligent::IBufferViewGL).
-template<class BaseInterface = IBufferView>
-class BufferViewBase : public DeviceObjectBase<BaseInterface, BufferViewDesc>
+template<class BaseInterface, class BuffViewObjAllocator>
+class BufferViewBase : public DeviceObjectBase<BaseInterface, BufferViewDesc, BuffViewObjAllocator>
 {
 public:
-    typedef DeviceObjectBase<BaseInterface, BufferViewDesc> TDeviceObjectBase;
+    typedef DeviceObjectBase<BaseInterface, BufferViewDesc, BuffViewObjAllocator> TDeviceObjectBase;
 
 	/// \param pDevice - pointer to the render device.
 	/// \param ViewDesc - buffer view description.
@@ -50,14 +50,15 @@ public:
 	/// \param bIsDefaultView - flag indicating if the view is default view, and is thus
 	///						    part of the buffer object. In this case the view will attach 
 	///							to the buffer's reference counters.
-    BufferViewBase( class IRenderDevice *pDevice,
+    BufferViewBase( BuffViewObjAllocator &ObjAllocator,
+                    class IRenderDevice *pDevice,
                     const BufferViewDesc& ViewDesc, 
                     class IBuffer *pBuffer,
                     bool bIsDefaultView ) :
         // Default views are created as part of the buffer, so we cannot not keep strong 
         // reference to the buffer to avoid cyclic links. Instead, we will attach to the 
         // reference counters of the buffer.
-        TDeviceObjectBase( pDevice, ViewDesc, bIsDefaultView ? pBuffer : nullptr ),
+        TDeviceObjectBase( ObjAllocator, pDevice, ViewDesc, bIsDefaultView ? pBuffer : nullptr ),
         m_pBuffer( pBuffer ),
         // For non-default view, we will keep strong reference to buffer
         m_spBuffer(bIsDefaultView ? nullptr : pBuffer)
@@ -65,7 +66,7 @@ public:
 
     IMPLEMENT_QUERY_INTERFACE_IN_PLACE( IID_BufferView, TDeviceObjectBase )
 
-    virtual IBuffer* GetBuffer()
+    virtual IBuffer* GetBuffer()override final
     {
         return m_pBuffer;
     }

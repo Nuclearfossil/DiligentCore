@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -29,12 +29,17 @@
 #include "TextureViewGLImpl.h"
 #include "GLContextState.h"
 #include "DeviceContextGLImpl.h"
+#include "EngineMemory.h"
 
 namespace Diligent
 {
 
-TextureBaseGL::TextureBaseGL(class RenderDeviceGLImpl *pDeviceGL, const TextureDesc& TexDesc, const TextureData &InitData /*= TextureData()*/, bool bIsDeviceInternal /*= false*/) : 
-    TTextureBase( pDeviceGL, TexDesc, bIsDeviceInternal ),
+TextureBaseGL::TextureBaseGL(FixedBlockMemoryAllocator& TexObjAllocator, 
+                             FixedBlockMemoryAllocator& TexViewObjAllocator, 
+                             class RenderDeviceGLImpl *pDeviceGL, 
+                             const TextureDesc& TexDesc, 
+                             const TextureData &InitData /*= TextureData()*/, bool bIsDeviceInternal /*= false*/) : 
+    TTextureBase( TexObjAllocator, TexViewObjAllocator, pDeviceGL, TexDesc, bIsDeviceInternal ),
     m_GlTexture(true), // Create Texture immediately
     m_BindTarget(0),
     m_GLTexFormat( TexFormatToGLInternalTexFormat(m_Desc.Format, m_Desc.BindFlags) )
@@ -71,6 +76,10 @@ void TextureBaseGL::CreateViewInternal( const struct TextureViewDesc &OrigViewDe
         auto ViewDesc = OrigViewDesc;
         CorrectTextureViewDesc(ViewDesc);
 
+        auto *pDeviceGLImpl = ValidatedCast<RenderDeviceGLImpl>(GetDevice());
+        auto &TexViewAllocator = pDeviceGLImpl->GetTexViewObjAllocator();
+        VERIFY( &TexViewAllocator == &m_dbgTexViewObjAllocator, "Texture view allocator does not match allocator provided during texture initialization" );
+
         // http://www.opengl.org/wiki/Texture_Storage#Texture_views
 
         GLenum GLViewFormat = TexFormatToGLInternalTexFormat( ViewDesc.Format, m_Desc.BindFlags );
@@ -80,14 +89,15 @@ void TextureBaseGL::CreateViewInternal( const struct TextureViewDesc &OrigViewDe
         if( ViewDesc.ViewType == TEXTURE_VIEW_SHADER_RESOURCE )
         {
             bool bIsFullTextureView =
-                ViewDesc.TextureType     == m_Desc.Type      &&
+                ViewDesc.TextureDim     == m_Desc.Type      &&
                 ViewDesc.Format          == CorrectTextureViewFormat( m_Desc.Format, ViewDesc.ViewType ) &&
                 ViewDesc.MostDetailedMip == 0                &&
                 ViewDesc.NumMipLevels    == m_Desc.MipLevels &&
                 ViewDesc.FirstArraySlice == 0                &&
                 ViewDesc.NumArraySlices  == m_Desc.ArraySize;
 
-            pViewOGL = new TextureViewGLImpl( GetDevice(), ViewDesc, this, 
+            pViewOGL = NEW(TexViewAllocator, "TextureViewGLImpl instance", TextureViewGLImpl, 
+                                               pDeviceGLImpl, ViewDesc, this, 
                                                !bIsFullTextureView, // Create OpenGL texture view object if view
                                                                     // does not address the whole texture
                                                bIsDefaultView
@@ -95,27 +105,27 @@ void TextureBaseGL::CreateViewInternal( const struct TextureViewDesc &OrigViewDe
             if( !bIsFullTextureView )
             {
                 GLenum GLViewTarget = 0;
-                switch(ViewDesc.TextureType)
+                switch(ViewDesc.TextureDim)
                 {
-                    case TEXTURE_TYPE_1D:
+                    case RESOURCE_DIM_TEX_1D:
                         GLViewTarget = GL_TEXTURE_1D;
                         ViewDesc.NumArraySlices = 1;
                         break;
         
-                    case TEXTURE_TYPE_1D_ARRAY:
+                    case RESOURCE_DIM_TEX_1D_ARRAY:
                         GLViewTarget = GL_TEXTURE_1D_ARRAY;
                         break;
 
-                    case TEXTURE_TYPE_2D:
+                    case RESOURCE_DIM_TEX_2D:
                         GLViewTarget = m_Desc.SampleCount > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
                         ViewDesc.NumArraySlices = 1;
                         break;
         
-                    case TEXTURE_TYPE_2D_ARRAY:
+                    case RESOURCE_DIM_TEX_2D_ARRAY:
                         GLViewTarget = m_Desc.SampleCount > 1 ? GL_TEXTURE_2D_MULTISAMPLE_ARRAY : GL_TEXTURE_2D_ARRAY;
                         break;
 
-                    case TEXTURE_TYPE_3D:
+                    case RESOURCE_DIM_TEX_3D:
                         GLViewTarget = GL_TEXTURE_3D;
                         break;
 
@@ -131,7 +141,8 @@ void TextureBaseGL::CreateViewInternal( const struct TextureViewDesc &OrigViewDe
             VERIFY( ViewDesc.NumArraySlices == 1 || ViewDesc.NumArraySlices == m_Desc.ArraySize,
                     "Only single array/depth slice or the whole texture can be bound as UAV in OpenGL");
             VERIFY( ViewDesc.AccessFlags != 0, "At least one access flag must be specified" );
-            pViewOGL = new TextureViewGLImpl( GetDevice(), ViewDesc, this, 
+            pViewOGL = NEW(TexViewAllocator, "TextureViewGLImpl instance", TextureViewGLImpl, 
+                                               pDeviceGLImpl, ViewDesc, this, 
                                                false, // Do NOT create texture view OpenGL object
                                                bIsDefaultView
                                                );
@@ -139,7 +150,8 @@ void TextureBaseGL::CreateViewInternal( const struct TextureViewDesc &OrigViewDe
         else if( ViewDesc.ViewType == TEXTURE_VIEW_RENDER_TARGET )
         {
             VERIFY( ViewDesc.NumMipLevels == 1, "Only single mip level can be bound as RTV" );
-            pViewOGL = new TextureViewGLImpl( GetDevice(), ViewDesc, this, 
+            pViewOGL = NEW(TexViewAllocator, "TextureViewGLImpl instance", TextureViewGLImpl, 
+                                               pDeviceGLImpl, ViewDesc, this, 
                                                false, // Do NOT create texture view OpenGL object
                                                bIsDefaultView
                                               );
@@ -147,7 +159,8 @@ void TextureBaseGL::CreateViewInternal( const struct TextureViewDesc &OrigViewDe
         else if( ViewDesc.ViewType == TEXTURE_VIEW_DEPTH_STENCIL )
         {
             VERIFY( ViewDesc.NumMipLevels == 1, "Only single mip level can be bound as DSV" );
-            pViewOGL = new TextureViewGLImpl( GetDevice(), ViewDesc, this, 
+            pViewOGL = NEW(TexViewAllocator, "TextureViewGLImpl instance", TextureViewGLImpl, 
+                                               pDeviceGLImpl, ViewDesc, this, 
                                                false, // Do NOT create texture view OpenGL object
                                                bIsDefaultView
                                               );
@@ -205,13 +218,13 @@ void TextureBaseGL :: CopyData(IDeviceContext *pContext,
     if( pSrcBox == nullptr )
     {
         SrcBox.MaxX = std::max( SrcTexDesc.Width >> SrcMipLevel, 1u );
-        if( SrcTexDesc.Type == TEXTURE_TYPE_1D || 
-            SrcTexDesc.Type == TEXTURE_TYPE_1D_ARRAY )
+        if( SrcTexDesc.Type == RESOURCE_DIM_TEX_1D || 
+            SrcTexDesc.Type == RESOURCE_DIM_TEX_1D_ARRAY )
             SrcBox.MaxY = 1;
         else
             SrcBox.MaxY = std::max( SrcTexDesc.Height >> SrcMipLevel, 1u );
 
-        if( SrcTexDesc.Type == TEXTURE_TYPE_3D )
+        if( SrcTexDesc.Type == RESOURCE_DIM_TEX_3D )
             SrcBox.MaxZ = std::max( SrcTexDesc.Depth >> SrcMipLevel, 1u );
         else
             SrcBox.MaxZ = 1;
@@ -255,18 +268,22 @@ void TextureBaseGL :: CopyData(IDeviceContext *pContext,
         }
 
         auto *pRenderDeviceGL = ValidatedCast<RenderDeviceGLImpl>(GetDevice());
+        auto &TexViewObjAllocator = pRenderDeviceGL->GetTexViewObjAllocator();
+        VERIFY( &TexViewObjAllocator == &m_dbgTexViewObjAllocator, "Texture view allocator does not match allocator provided during texture initialization" );
+
         auto &FBOCache = pRenderDeviceGL->m_FBOCache;
         auto &TexRegionRender = pRenderDeviceGL->m_TexRegionRender;
         TexRegionRender.SetStates(pDeviceCtxGL);
 
         // Create temporary SRV for the entire source texture
         TextureViewDesc SRVDesc;
-        SRVDesc.TextureType = SrcTexDesc.Type;
+        SRVDesc.TextureDim = SrcTexDesc.Type;
         SRVDesc.ViewType = TEXTURE_VIEW_SHADER_RESOURCE;
         CorrectTextureViewDesc( SRVDesc );
         // Note: texture view allocates memory for the copy of the name
         // If the name is empty, memory should not be allocated
-        TextureViewGLImpl SRV( GetDevice(), SRVDesc, pSrcTextureGL,
+        // We have to provide allocator even though it will never be used
+        TextureViewGLImpl SRV( TexViewObjAllocator, GetDevice(), SRVDesc, pSrcTextureGL,
             false, // Do NOT create texture view OpenGL object
             true   // The view, like default view, should not
                    // keep strong reference to the texture
@@ -276,7 +293,7 @@ void TextureBaseGL :: CopyData(IDeviceContext *pContext,
         {
             // Create temporary RTV for the target subresource
             TextureViewDesc RTVDesc;
-            RTVDesc.TextureType = m_Desc.Type;
+            RTVDesc.TextureDim = m_Desc.Type;
             RTVDesc.ViewType = TEXTURE_VIEW_RENDER_TARGET;
             RTVDesc.FirstArraySlice = DepthSlice + DstSlice;
             RTVDesc.MostDetailedMip = DstMipLevel;
@@ -284,7 +301,8 @@ void TextureBaseGL :: CopyData(IDeviceContext *pContext,
             CorrectTextureViewDesc( RTVDesc );
             // Note: texture view allocates memory for the copy of the name
             // If the name is empty, memory should not be allocated
-            TextureViewGLImpl RTV( GetDevice(), RTVDesc, this,
+            // We have to provide allocator even though it will never be used
+            TextureViewGLImpl RTV( TexViewObjAllocator, GetDevice(), RTVDesc, this,
                 false, // Do NOT create texture view OpenGL object
                 true   // The view, like default view, should not
                        // keep strong reference to the texture

@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -30,13 +30,21 @@
 #include "ObjectBase.h"
 #include <unordered_map>
 #include "HashUtils.h"
+#include "STDAllocator.h"
 
 namespace Diligent
 {
+    class FixedBlockMemoryAllocator;
     /// Implementation of the resource mapping
-    class ResourceMappingImpl : public ObjectBase<IResourceMapping>
+    class ResourceMappingImpl : public ObjectBase<IResourceMapping, FixedBlockMemoryAllocator>
     {
     public:
+        typedef ObjectBase<IResourceMapping, FixedBlockMemoryAllocator> TObjectBase;
+        ResourceMappingImpl(FixedBlockMemoryAllocator &ObjAllocator, IMemoryAllocator &RawMemAllocator) : 
+            TObjectBase(nullptr, &ObjAllocator),
+            m_HashTable(STD_ALLOCATOR_RAW_MEM(HashTableElem, RawMemAllocator, "Allocator for unordered_map< HashMapStringKey, RefCntAutoPtr<IDeviceObject> >") )
+        {}
+
         ~ResourceMappingImpl();
 
         virtual void QueryInterface( const Diligent::INTERFACE_ID &IID, IObject **ppInterface );
@@ -53,6 +61,7 @@ namespace Diligent
         ThreadingTools::LockHelper Lock();
 
         ThreadingTools::LockFlag m_LockFlag;
-        std::unordered_map< Diligent::HashMapStringKey, Diligent::RefCntAutoPtr<IDeviceObject> > m_HashTable;
+        typedef std::pair<HashMapStringKey, RefCntAutoPtr<IDeviceObject> > HashTableElem;
+        std::unordered_map< HashMapStringKey, RefCntAutoPtr<IDeviceObject>, std::hash<HashMapStringKey>, std::equal_to<HashMapStringKey>, STDAllocatorRawMem<HashTableElem>  > m_HashTable;
     };
 }

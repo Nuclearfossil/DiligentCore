@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -36,15 +36,17 @@ namespace Diligent
 
 /// \remarks Swap chain holds the strong reference to the device and a weak reference to the
 ///          immediate context.
-template<class BaseInterface = ISwapChain>
-class SwapChainBase : public ObjectBase<BaseInterface>
+template<class BaseInterface, class SwapChainAllocator>
+class SwapChainBase : public ObjectBase<BaseInterface, SwapChainAllocator>
 {
 public:
-    typedef ObjectBase<BaseInterface> TObjectBase;
+    typedef ObjectBase<BaseInterface, SwapChainAllocator> TObjectBase;
 
-    SwapChainBase( IRenderDevice *pDevice,
-                    IDeviceContext *pDeviceContext,
-                    const SwapChainDesc& SCDesc ) : 
+    SwapChainBase( SwapChainAllocator &Allocator,
+                   IRenderDevice *pDevice,
+                   IDeviceContext *pDeviceContext,
+                   const SwapChainDesc& SCDesc ) : 
+        TObjectBase(nullptr, &Allocator),
         m_pRenderDevice(pDevice),
         m_wpDeviceContext(pDeviceContext),
         m_SwapChainDesc(SCDesc)
@@ -70,6 +72,7 @@ protected:
         {
             m_SwapChainDesc.Width = NewWidth;
             m_SwapChainDesc.Height = NewHeight;
+            LOG_INFO_MESSAGE("Changing display resolution to ", m_SwapChainDesc.Width, "x", m_SwapChainDesc.Height);
             return true;
         }
 

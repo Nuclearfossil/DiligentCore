@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@
 #include "DeviceContextD3D11Impl.h"
 #include "SwapChainD3D11Impl.h"
 #include "D3D11TypeConversions.h"
+#include "EngineMemory.h"
 #include <Windows.h>
 
 using namespace Diligent;
@@ -56,11 +57,13 @@ inline bool SdkLayersAvailable()
 }
 #endif
 
-void CreateDeviceAndImmediateContextD3D11( const EngineCreationAttribs& CreationAttribs, IRenderDevice **ppDevice, Diligent::IDeviceContext **ppContext )
+void CreateDeviceAndImmediateContextD3D11( const EngineD3D11Attribs& EngineAttribs, IRenderDevice **ppDevice, Diligent::IDeviceContext **ppContext )
 {
     VERIFY( ppDevice && ppContext, "Null pointer is provided" );
     if( !ppDevice || !ppContext )
         return;
+
+    SetRawAllocator(EngineAttribs.pRawMemAllocator);
 
     *ppDevice = nullptr;
     *ppContext = nullptr;
@@ -135,15 +138,15 @@ void CreateDeviceAndImmediateContextD3D11( const EngineCreationAttribs& Creation
             CHECK_D3D_RESULT_THROW( hr, "Failed to create D3D11 Device and swap chain" );
 	    }
 
-        RenderDeviceD3D11Impl *pRenderDeviceD3D11( new RenderDeviceD3D11Impl( pd3d11Device ) );
+        auto &RawAlloctor = GetRawAllocator();
+        RenderDeviceD3D11Impl *pRenderDeviceD3D11( NEW(RawAlloctor, "RenderDeviceD3D11Impl instance", RenderDeviceD3D11Impl, EngineAttribs, pd3d11Device ) );
         pRenderDeviceD3D11->QueryInterface(IID_RenderDevice, reinterpret_cast<IObject**>(ppDevice) );
 
-        RefCntAutoPtr<DeviceContextD3D11Impl> pDeviceContextD3D11( new DeviceContextD3D11Impl( pRenderDeviceD3D11, pd3d11Context) );
+        RefCntAutoPtr<DeviceContextD3D11Impl> pDeviceContextD3D11( NEW(RawAlloctor, "DeviceContextD3D11Impl instance", DeviceContextD3D11Impl, pRenderDeviceD3D11, pd3d11Context, EngineAttribs, false) );
         // We must call AddRef() (implicitly through QueryInterface()) because pRenderDeviceD3D11 will
         // keep a weak reference to the context
         pDeviceContextD3D11->QueryInterface(IID_DeviceContext, reinterpret_cast<IObject**>(ppContext) );
         pRenderDeviceD3D11->SetImmediateContext(pDeviceContextD3D11);
-        pDeviceContextD3D11->CreateDefaultStates();
     }
     catch( const std::runtime_error & )
     {
@@ -174,7 +177,9 @@ void CreateSwapChainD3D11( IRenderDevice *pDevice, Diligent::IDeviceContext *pIm
     {
         auto *pDeviceD3D11 = ValidatedCast<RenderDeviceD3D11Impl>( pDevice );
         auto *pDeviceContextD3D11 = ValidatedCast<DeviceContextD3D11Impl>(pImmediateContext);
-        auto *pSwapChainD3D11 = new SwapChainD3D11Impl(SwapChainDesc, pDeviceD3D11, pDeviceContextD3D11, pNativeWndHandle);
+        auto &RawMemAllocator = GetRawAllocator();
+
+        auto *pSwapChainD3D11 = NEW(RawMemAllocator,  "SwapChainD3D11Impl instance", SwapChainD3D11Impl, SwapChainDesc, pDeviceD3D11, pDeviceContextD3D11, pNativeWndHandle);
         pSwapChainD3D11->QueryInterface( IID_SwapChain, reinterpret_cast<IObject**>(ppSwapChain) );
 
         pDeviceContextD3D11->SetSwapChain(pSwapChainD3D11);

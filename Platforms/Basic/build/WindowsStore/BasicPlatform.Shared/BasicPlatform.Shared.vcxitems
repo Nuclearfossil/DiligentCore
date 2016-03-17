@@ -29,4 +29,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\BasicPlatformMisc.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\..\include\pch.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="$(MSBuildThisFileDirectory)..\..\..\CMakeLists.txt" />
+  </ItemGroup>
 </Project>

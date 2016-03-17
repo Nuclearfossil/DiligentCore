@@ -1,0 +1,231 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="interface">
+      <UniqueIdentifier>{63fbad2e-58d1-4c3b-af39-ddab055b367c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{3c9f81fd-4df8-4dc8-bac2-bd6aa821e813}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\GenerateMips">
+      <UniqueIdentifier>{a7957e00-3ef6-4d7e-9666-f3ef87c8a243}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\include\RenderDeviceD3D12Impl.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\pch.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\PipelineStateD3D12Impl.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\D3D12TypeConversions.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\interface\PipelineStateD3D12.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\interface\RenderDeviceFactoryD3D12.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\SwapChainD3D12Impl.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\interface\SwapChainD3D12.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DeviceContextD3D12Impl.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ShaderD3D12Impl.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\interface\ShaderD3D12.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\interface\RenderDeviceD3D12.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\D3D12TypeDefinitions.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\interface\TextureViewD3D12.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\interface\TextureD3D12.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\TextureViewD3D12Impl.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\TextureD3D12Impl.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DescriptorHeap.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\SamplerD3D12Impl.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\interface\SamplerD3D12.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\interface\BufferD3D12.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\BufferD3D12Impl.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\interface\BufferViewD3D12.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\BufferViewD3D12Impl.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\D3D12ResourceBase.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ShaderResourceBindingD3D12Impl.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\interface\ShaderResourceBindingD3D12.h">
+      <Filter>interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ShaderResourceLayoutD3D12.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\RootSignature.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\CommandListManager.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\CommandContext.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\d3dx12_win.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\LinearAllocator.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ShaderResourceCacheD3D12.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\GenerateMips.h">
+      <Filter>include</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\RenderDeviceD3D12Impl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\pch.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\PipelineStateD3D12Impl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\D3D12TypeConversions.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\RenderDeviceFactoryD3D12.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\SwapChainD3D12Impl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DeviceContextD3D12Impl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ShaderD3D12Impl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\TextureD3D12Impl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\TextureViewD3D12Impl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DescriptorHeap.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\SamplerD3D12Impl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\BufferViewD3D12Impl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\BufferD3D12Impl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\D3D12ResourceBase.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ShaderResourceBindingD3D12Impl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ShaderResourceLayoutD3D12.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\RootSignature.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\CommandListManager.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\CommandContext.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\LinearAllocator.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ShaderResourceCacheD3D12.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\GenerateMips.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\shaders\GenerateMips\GenerateMipsCS.hlsli">
+      <Filter>Shaders\GenerateMips</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\..\shaders\GenerateMips\GenerateMipsGammaCS.hlsl">
+      <Filter>Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\GenerateMips\GenerateMipsGammaOddCS.hlsl">
+      <Filter>Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\GenerateMips\GenerateMipsGammaOddXCS.hlsl">
+      <Filter>Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\GenerateMips\GenerateMipsGammaOddYCS.hlsl">
+      <Filter>Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\GenerateMips\GenerateMipsLinearCS.hlsl">
+      <Filter>Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\GenerateMips\GenerateMipsLinearOddCS.hlsl">
+      <Filter>Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\GenerateMips\GenerateMipsLinearOddXCS.hlsl">
+      <Filter>Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\shaders\GenerateMips\GenerateMipsLinearOddYCS.hlsl">
+      <Filter>Shaders\GenerateMips</Filter>
+    </FxCompile>
+  </ItemGroup>
+</Project>

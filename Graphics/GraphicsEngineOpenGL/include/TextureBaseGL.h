@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -31,16 +31,24 @@
 #include "TextureViewGLImpl.h"
 #include "AsyncWritableResource.h"
 
+
 namespace Diligent
 {
 
+class FixedBlockMemoryAllocator;
+
 /// Base implementation of the Diligent::ITextureGL interface
-class TextureBaseGL : public TextureBase<ITextureGL, TextureViewGLImpl>, public AsyncWritableResource
+class TextureBaseGL : public TextureBase<ITextureGL, TextureViewGLImpl, FixedBlockMemoryAllocator, FixedBlockMemoryAllocator>, public AsyncWritableResource
 {
 public:
-    typedef TextureBase<ITextureGL, TextureViewGLImpl> TTextureBase;
+    typedef TextureBase<ITextureGL, TextureViewGLImpl, FixedBlockMemoryAllocator, FixedBlockMemoryAllocator> TTextureBase;
 
-    TextureBaseGL(class RenderDeviceGLImpl *pDeviceGL, const TextureDesc& BuffDesc, const TextureData &InitData = TextureData(), bool bIsDeviceInternal = false);
+    TextureBaseGL(FixedBlockMemoryAllocator& TexObjAllocator, 
+                  FixedBlockMemoryAllocator& TexViewObjAllocator, 
+                  class RenderDeviceGLImpl *pDeviceGL, 
+                  const TextureDesc& BuffDesc, 
+                  const TextureData &InitData = TextureData(), 
+                  bool bIsDeviceInternal = false);
     ~TextureBaseGL();
     
     virtual void QueryInterface( const Diligent::INTERFACE_ID &IID, IObject **ppInterface )override;

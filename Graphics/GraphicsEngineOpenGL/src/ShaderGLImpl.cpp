@@ -1,4 +1,4 @@
-/*     Copyright 2015 Egor Yusov
+/*     Copyright 2015-2016 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -38,8 +38,8 @@ static const Char* g_GLSLDefinitions =
     #include "GLSLDefinitions_inc.h"
 };
 
-ShaderGLImpl::ShaderGLImpl(RenderDeviceGLImpl *pDeviceGL, const ShaderCreationAttribs &ShaderCreationAttribs, bool bIsDeviceInternal) : 
-    TShaderBase( pDeviceGL, ShaderCreationAttribs.Desc, bIsDeviceInternal ),
+ShaderGLImpl::ShaderGLImpl(FixedBlockMemoryAllocator& ShaderObjAllocator, RenderDeviceGLImpl *pDeviceGL, const ShaderCreationAttribs &ShaderCreationAttribs, bool bIsDeviceInternal) : 
+    TShaderBase( ShaderObjAllocator, pDeviceGL, ShaderCreationAttribs.Desc, bIsDeviceInternal ),
     m_GlProgObj(false),
     m_GLShaderObj( false, GLObjectWrappers::GLShaderObjCreateReleaseHelper( GetGLShaderType( m_Desc.ShaderType ) ) )
 {
@@ -275,24 +275,7 @@ ShaderGLImpl::ShaderGLImpl(RenderDeviceGLImpl *pDeviceGL, const ShaderCreationAt
         // boolean status bit DELETE_STATUS is set to true
         ShaderObj.Release();
 
-        m_GlProgObj.LoadUniforms();
-        
-        // After all program resources are loaded, we can populate shader variable hash map.
-        // The map contains raw pointers, but none of the arrays will ever change.
-#define STORE_SHADER_VARIABLES(ResArr)\
-        {                                                               \
-            auto& Arr = ResArr;                                         \
-            for( auto it = Arr.begin(); it != Arr.end(); ++it )         \
-                /* HashMapStringKey will make a copy of the string*/    \
-                m_VariableHash.insert( std::make_pair( Diligent::HashMapStringKey(it->Name), CGLShaderVariable(this, *it) ) ); \
-        }
-
-        STORE_SHADER_VARIABLES(m_GlProgObj.GetUniformBlocks())
-        STORE_SHADER_VARIABLES(m_GlProgObj.GetSamplers())
-        STORE_SHADER_VARIABLES(m_GlProgObj.GetImages())
-        STORE_SHADER_VARIABLES(m_GlProgObj.GetStorageBlocks())
-#undef STORE_SHADER_VARIABLES
-
+        m_GlProgObj.InitResources(m_Desc.DefaultVariableType, m_Desc.VariableDesc, m_Desc.NumVariables, this);
     }
     else
     {
@@ -302,15 +285,16 @@ ShaderGLImpl::ShaderGLImpl(RenderDeviceGLImpl *pDeviceGL, const ShaderCreationAt
 
 ShaderGLImpl::~ShaderGLImpl()
 {
-    static_cast<RenderDeviceGLImpl*>( GetDevice() )->m_PipelineCache.OnDestroyShader(this);
 }
 
 IMPLEMENT_QUERY_INTERFACE( ShaderGLImpl, IID_ShaderGL, TShaderBase )
 
 void ShaderGLImpl::BindResources( IResourceMapping* pResourceMapping, Uint32 Flags )
 {
-    if( m_GlProgObj )
-        m_GlProgObj.BindResources( pResourceMapping, Flags );
+    if( static_cast<GLuint>(m_GlProgObj) )
+    {
+        m_GlProgObj.BindConstantResources( pResourceMapping, Flags );
+    }
     else
     {
         static bool FirstTime = true;
@@ -329,14 +313,13 @@ IShaderVariable* ShaderGLImpl::GetShaderVariable( const Char* Name )
         UNSUPPORTED( "Shader variable queries are currently supported for separable programs only" );
     }
 
-    // Name will be implicitly converted to HashMapStringKey without making a copy
-    auto it = m_VariableHash.find( Name );
-    if( it == m_VariableHash.end() )
+    auto *pShaderVar = m_GlProgObj.GetConstantResources().GetShaderVariable(Name);
+    if(!pShaderVar)
     {
-        LOG_ERROR_MESSAGE( "Shader variable \"", Name, "\" is not found in shader \"", m_Desc.Name ? m_Desc.Name : "", "\". Attempts to set the variable will be silently ignored." );
-        return &m_DummyShaderVar;
+        LOG_ERROR_MESSAGE( "Static shader variable \"", Name, "\" is not found in shader \"", m_Desc.Name ? m_Desc.Name : "", "\". Attempts to set the variable will be silently ignored." );
+        pShaderVar = &m_DummyShaderVar;
     }
-    return &it->second;
+    return pShaderVar;
 }
 
 }
