@@ -92,12 +92,12 @@ enum SHADER_VARIABLE_TYPE
 {
     /// Shader variable is constant across all shader instances.
     /// It must be set *once* directly through IShader::BindResources() or through 
-    /// the shader variable.
+    /// the shader variable queried from the shader.
     SHADER_VARIABLE_TYPE_STATIC = 0, 
 
     /// Shader variable is constant across shader resource bindings instance (see IShaderResourceBinding).
     /// It must be set *once* through IShaderResourceBinding::BindResources() or through
-    /// the shader variable. It cannot be set through IShader interface
+    /// the shader variable interface queried from the resource binding. It cannot be set through IShader interface
     SHADER_VARIABLE_TYPE_MUTABLE,
 
     /// Shader variable is dynamic. It can be set multiple times for every instance of shader resource 
