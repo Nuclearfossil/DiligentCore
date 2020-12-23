@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -21,21 +25,21 @@
  *  of the possibility of such damages.
  */
 
-#include "StandardFile.h"
-#include "DebugUtilities.h"
-#include "Errors.h"
+#include "StandardFile.hpp"
+#include "DebugUtilities.hpp"
+#include "Errors.hpp"
 
-StandardFile::StandardFile(const FileOpenAttribs &OpenAttribs, Diligent::Char SlashSymbol) : 
-    BasicFile(OpenAttribs, SlashSymbol),
-    m_pFile(nullptr)
+StandardFile::StandardFile(const FileOpenAttribs& OpenAttribs, Diligent::Char SlashSymbol) :
+    BasicFile{OpenAttribs, SlashSymbol},
+    m_pFile{nullptr}
 {
 #if PLATFORM_LINUX || PLATFORM_MACOS || PLATFORM_IOS
     auto OpenModeStr = GetOpenModeStr();
-    m_pFile = fopen(m_OpenAttribs.strFilePath, OpenModeStr.c_str());
+    m_pFile          = fopen(m_OpenAttribs.strFilePath, OpenModeStr.c_str());
     if (m_pFile == nullptr)
     {
         LOG_ERROR_AND_THROW("Failed to open file ", m_OpenAttribs.strFilePath,
-            "\nThe following error occured: ", strerror(errno));
+                            "\nThe following error occured: ", strerror(errno));
     }
 #endif
 }
@@ -49,33 +53,34 @@ StandardFile::~StandardFile()
     }
 }
 
-void StandardFile::Read(Diligent::IDataBlob *pData)
+void StandardFile::Read(Diligent::IDataBlob* pData)
 {
     VERIFY_EXPR(pData != nullptr);
     auto FileSize = GetSize();
     pData->Resize(FileSize);
     auto Res = Read(pData->GetDataPtr(), pData->GetSize());
     VERIFY(Res, "Failed to read ", FileSize, " bytes from file");
+    (void)Res;
 }
 
-bool StandardFile::Read(void *Data, size_t BufferSize)
+bool StandardFile::Read(void* Data, size_t Size)
 {
     VERIFY(m_pFile, "File is not opened");
     if (!m_pFile)
-        return 0;
-    auto BytesRead = fread(Data, 1, BufferSize, m_pFile);
+        return false;
+    auto BytesRead = fread(Data, 1, Size, m_pFile);
 
-    return BytesRead == BufferSize;
+    return BytesRead == Size;
 }
 
-bool StandardFile::Write(const void *Data, size_t BufferSize)
+bool StandardFile::Write(const void* Data, size_t Size)
 {
     VERIFY(m_pFile, "File is not opened");
     if (!m_pFile)
-        return 0;
-    auto BytesWritten = fwrite(Data, 1, BufferSize, m_pFile);
+        return false;
+    auto BytesWritten = fwrite(Data, 1, Size, m_pFile);
 
-    return BytesWritten == BufferSize;
+    return BytesWritten == Size;
 }
 
 size_t StandardFile::GetSize()
@@ -106,10 +111,12 @@ void StandardFile::SetPos(size_t Offset, FilePosOrigin Origin)
     int orig = SEEK_SET;
     switch (Origin)
     {
-    case FilePosOrigin::Start: orig = SEEK_SET; break;
-    case FilePosOrigin::Curr:  orig = SEEK_CUR; break;
-    case FilePosOrigin::End:   orig = SEEK_END; break;
-    default: UNEXPECTED("Unknown origin");
+        // clang-format off
+        case FilePosOrigin::Start: orig = SEEK_SET; break;
+        case FilePosOrigin::Curr:  orig = SEEK_CUR; break;
+        case FilePosOrigin::End:   orig = SEEK_END; break;
+        // clang-format on
+        default: UNEXPECTED("Unknown origin");
     }
 
     fseek(m_pFile, static_cast<long>(Offset), orig);

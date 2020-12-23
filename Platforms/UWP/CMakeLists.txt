@@ -1,13 +1,13 @@
 cmake_minimum_required (VERSION 3.8)
 
-project(UniversalWindowsPlatform CXX)
+project(Diligent-UniversalWindowsPlatform CXX)
 
-set(INCLUDE 
-    include/UWPDebug.h
-    include/UWPFileSystem.h
-    include/UWPDefinitions.h
-    include/pch.h
-    ../Win32/include/Win32Atomics.h
+set(INTERFACE 
+    interface/UWPDebug.hpp
+    interface/UWPFileSystem.hpp
+    interface/UWPDefinitions.h
+    interface/UWPNativeWindow.h
+    ../Win32/interface/Win32Atomics.hpp
 )
 
 set(SOURCE 
@@ -16,26 +16,31 @@ set(SOURCE
     ../Win32/src/Win32Atomics.cpp
 )
 
-add_library(UniversalWindowsPlatform ${SOURCE} ${INCLUDE} ${PLATFORM_INTERFACE_HEADERS})
-set_common_target_properties(UniversalWindowsPlatform)
+add_library(Diligent-UniversalWindowsPlatform ${SOURCE} ${INTERFACE} ${PLATFORM_INTERFACE_HEADERS})
+set_common_target_properties(Diligent-UniversalWindowsPlatform)
 
-target_include_directories(UniversalWindowsPlatform 
+target_include_directories(Diligent-UniversalWindowsPlatform 
 PUBLIC
-    ../Win32/include
-    include
+    ../Win32/interface
+    interface
 )
 
-target_link_libraries(UniversalWindowsPlatform 
+target_link_libraries(Diligent-UniversalWindowsPlatform 
+PRIVATE
+    Diligent-BuildSettings 
 PUBLIC
-    BuildSettings 
-    BasicPlatform
-    PlatformInterface
+    Diligent-BasicPlatform
+    Diligent-PlatformInterface
 )
 
 source_group("src" FILES ${SOURCE})
-source_group("include" FILES ${INCLUDE})
-source_group("interface" FILES ${PLATFORM_INTERFACE_HEADERS})
+source_group("interface\\UWP" FILES ${INTERFACE})
+source_group("interface\\common" FILES ${PLATFORM_INTERFACE_HEADERS})
 
-set_target_properties(UniversalWindowsPlatform PROPERTIES
-    FOLDER Core/Platforms
+set_target_properties(Diligent-UniversalWindowsPlatform PROPERTIES
+    FOLDER DiligentCore/Platforms
 )
+
+if(DILIGENT_INSTALL_CORE)
+    install_core_lib(Diligent-UniversalWindowsPlatform)
+endif()

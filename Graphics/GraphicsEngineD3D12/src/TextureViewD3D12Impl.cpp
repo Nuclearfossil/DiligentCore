@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -22,40 +26,50 @@
  */
 
 #include "pch.h"
-#include "TextureViewD3D12Impl.h"
-#include "DeviceContextD3D12Impl.h"
+#include "TextureViewD3D12Impl.hpp"
+#include "DeviceContextD3D12Impl.hpp"
 
 namespace Diligent
 {
 
-TextureViewD3D12Impl::TextureViewD3D12Impl( IReferenceCounters*        pRefCounters,
-                                            RenderDeviceD3D12Impl*     pDevice, 
-                                            const TextureViewDesc&     ViewDesc, 
-                                            ITexture*                  pTexture,
-                                            DescriptorHeapAllocation&& HandleAlloc,
-                                            bool                       bIsDefaultView ) :
-    TTextureViewBase( pRefCounters, pDevice, ViewDesc, pTexture, bIsDefaultView ),
-    m_Descriptor(std::move(HandleAlloc))
-{
-}
-//
-//ID3D12View* TextureViewD3D12Impl::GetD3D12View()
-//{
-//    return m_pD3D12View;
-//}
-
-IMPLEMENT_QUERY_INTERFACE( TextureViewD3D12Impl, IID_TextureViewD3D12, TTextureViewBase )
-
-void TextureViewD3D12Impl::GenerateMips( IDeviceContext *pContext )
-{
-    VERIFY( m_Desc.ViewType == TEXTURE_VIEW_SHADER_RESOURCE, "GenerateMips() is allowed for shader resource views only, ", GetTexViewTypeLiteralName(m_Desc.ViewType), " is not allowed." );
-    if( m_Desc.ViewType != TEXTURE_VIEW_SHADER_RESOURCE )
+TextureViewD3D12Impl::TextureViewD3D12Impl(IReferenceCounters*        pRefCounters,
+                                           RenderDeviceD3D12Impl*     pDevice,
+                                           const TextureViewDesc&     ViewDesc,
+                                           ITexture*                  pTexture,
+                                           DescriptorHeapAllocation&& Descriptor,
+                                           DescriptorHeapAllocation&& TexArraySRVDescriptor,
+                                           DescriptorHeapAllocation&& MipLevelUAVDescriptors,
+                                           bool                       bIsDefaultView) :
+    // clang-format off
+    TTextureViewBase
     {
-        LOG_ERROR("GenerateMips() is allowed for shader resource views only, ", GetTexViewTypeLiteralName(m_Desc.ViewType), " is not allowed.");
-        return;
+        pRefCounters,
+        pDevice,
+        ViewDesc,
+        pTexture,
+        bIsDefaultView
+    },
+    m_Descriptor{std::move(Descriptor)}
+// clang-format on
+{
+    if (!TexArraySRVDescriptor.IsNull() && !MipLevelUAVDescriptors.IsNull())
+    {
+        m_MipGenerationDescriptors = ALLOCATE(GetRawAllocator(), "Raw memory for DescriptorHeapAllocation", DescriptorHeapAllocation, 2);
+        new (&m_MipGenerationDescriptors[0]) DescriptorHeapAllocation(std::move(TexArraySRVDescriptor));
+        new (&m_MipGenerationDescriptors[1]) DescriptorHeapAllocation(std::move(MipLevelUAVDescriptors));
     }
-    auto *pDeviceCtxD3D12 = ValidatedCast<DeviceContextD3D12Impl>( pContext );
-    pDeviceCtxD3D12->GenerateMips(this);
 }
 
+TextureViewD3D12Impl::~TextureViewD3D12Impl()
+{
+    if (m_MipGenerationDescriptors != nullptr)
+    {
+        for (Uint32 i = 0; i < 2; ++i)
+        {
+            m_MipGenerationDescriptors[i].~DescriptorHeapAllocation();
+        }
+        FREE(GetRawAllocator(), m_MipGenerationDescriptors);
+    }
 }
+
+} // namespace Diligent

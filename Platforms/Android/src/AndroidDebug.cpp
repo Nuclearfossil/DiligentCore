@@ -21,36 +21,38 @@
  *  of the possibility of such damages.
  */
 
-#include "AndroidDebug.h"
-#include "FormatMessage.h"
+#include "AndroidDebug.hpp"
+#include "FormatString.hpp"
 #include <android/log.h>
 #include <csignal>
 
 using namespace Diligent;
 
-void AndroidDebug :: AssertionFailed( const Char *Message, const char *Function, const char *File, int Line )
+void AndroidDebug::AssertionFailed(const Char* Message, const char* Function, const char* File, int Line)
 {
     auto AssertionFailedMessage = FormatAssertionFailedMessage(Message, Function, File, Line);
-    OutputDebugMessage( DebugMessageSeverity::Error, AssertionFailedMessage.c_str(), nullptr, nullptr, 0 );
+    OutputDebugMessage(DEBUG_MESSAGE_SEVERITY_ERROR, AssertionFailedMessage.c_str(), nullptr, nullptr, 0);
 
-    raise( SIGTRAP );
+    raise(SIGTRAP);
 };
 
 
-void AndroidDebug::OutputDebugMessage(DebugMessageSeverity Severity, const Char *Message, const char *Function, const char *File, int Line)
+void AndroidDebug::OutputDebugMessage(DEBUG_MESSAGE_SEVERITY Severity, const Char* Message, const char* Function, const char* File, int Line)
 {
     auto msg = FormatDebugMessage(Severity, Message, Function, File, Line);
-    static const android_LogPriority Priorities[] = { ANDROID_LOG_INFO, ANDROID_LOG_WARN, ANDROID_LOG_ERROR, ANDROID_LOG_FATAL };
-    __android_log_print( Priorities[static_cast<int>(Severity)], "Diligent Engine", "%s", msg.c_str() );
+
+    static const android_LogPriority Priorities[] = {ANDROID_LOG_INFO, ANDROID_LOG_WARN, ANDROID_LOG_ERROR, ANDROID_LOG_FATAL};
+    __android_log_print(Priorities[static_cast<int>(Severity)], "Diligent Engine", "%s", msg.c_str());
 }
 
 void DebugAssertionFailed(const Char* Message, const char* Function, const char* File, int Line)
 {
-    AndroidDebug :: AssertionFailed( Message, Function, File, Line );
+    AndroidDebug::AssertionFailed(Message, Function, File, Line);
 }
 
 namespace Diligent
 {
-DebugMessageCallbackType DebugMessageCallback = AndroidDebug::OutputDebugMessage;
-}
 
+DebugMessageCallbackType DebugMessageCallback = AndroidDebug::OutputDebugMessage;
+
+}

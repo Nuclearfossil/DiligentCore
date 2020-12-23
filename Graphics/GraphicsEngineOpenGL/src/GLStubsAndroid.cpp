@@ -25,6 +25,8 @@
 #include "GLStubsAndroid.h"
 #include <EGL/egl.h>
 
+// clang-format off
+
 #define DECLARE_GL_FUNCTION(Func, FuncType, ...)\
     FuncType Func = nullptr;                    \
     void Func##Stub(__VA_ARGS__)                \
@@ -82,6 +84,15 @@
 
 #ifdef LOAD_GL_GET_PROGRAM_RESOURCE_NAME
     DECLARE_GL_FUNCTION( glGetProgramResourceName, PFNGLGETPROGRAMRESOURCENAMEPROC, GLuint program, GLenum programInterface, GLuint index, GLsizei bufSize, GLsizei* length, GLchar *name )
+#endif
+
+#ifdef LOAD_GL_GET_PROGRAM_RESOURCE_INDEX
+    PFNGLGETPROGRAMRESOURCEINDEXPROC glGetProgramResourceIndex = nullptr;
+    GLuint glGetProgramResourceIndexStub(GLuint program, GLenum programInterface, const GLchar *name)
+    {
+        UnsupportedGLFunctionStub("glGetProgramResourceIndex");
+        return 0;
+    }
 #endif
 
 #ifdef LOAD_GL_GET_PROGRAM_RESOURCEIV
@@ -152,6 +163,54 @@
     DECLARE_GL_FUNCTION( glGetTexLevelParameteriv, PFNGLGETTEXLEVELPARAMETERIVPROC, GLenum target, GLint level, GLenum pname, GLint *params )
 #endif
 
+#ifdef LOAD_GL_SHADER_STORAGE_BLOCK_BINDING
+    DECLARE_GL_FUNCTION( glShaderStorageBlockBinding, PFNGLSHADERSTORAGEBLOCKBINDINGPROC, GLuint program, GLuint storageBlockIndex, GLuint storageBlockBinding )
+#endif
+
+#ifdef LOAD_GL_TEX_STORAGE_3D_MULTISAMPLE
+    DECLARE_GL_FUNCTION( glTexStorage3DMultisample, PFNGLTEXSTORAGE3DMULTISAMPLEPROC, GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLboolean fixedsamplelocations )
+#endif
+
+#ifdef LOAD_GL_TEXTURE_VIEW
+    DECLARE_GL_FUNCTION( glTextureView, PFNGLTEXTUREVIEWPROC, GLuint texture, GLenum target, GLuint origtexture, GLenum internalformat, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers)
+#endif
+
+#ifdef LOAD_GL_DRAW_ELEMENTS_INSTANCED_BASE_VERTEX_BASE_INSTANCE
+    DECLARE_GL_FUNCTION( glDrawElementsInstancedBaseVertexBaseInstance, PFNGLDRAWELEMENTSINSTANCEDBASEVERTEXBASEINSTANCEPROC, GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount, GLint basevertex, GLuint baseinstance)
+#endif
+
+#ifdef LOAD_GL_DRAW_ELEMENTS_INSTANCED_BASE_VERTEX
+    DECLARE_GL_FUNCTION( glDrawElementsInstancedBaseVertex, PFNGLDRAWELEMENTSINSTANCEDBASEVERTEXPROC, GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount, GLint basevertex)
+#endif
+
+#ifdef LOAD_GL_DRAW_ELEMENTS_INSTANCED_BASE_INSTANCE
+    DECLARE_GL_FUNCTION( glDrawElementsInstancedBaseInstance, PFNGLDRAWELEMENTSINSTANCEDBASEINSTANCEPROC, GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount, GLuint baseinstance)
+#endif
+
+#ifdef LOAD_GL_DRAW_ARRAYS_INSTANCED_BASE_INSTANCE
+    DECLARE_GL_FUNCTION( glDrawArraysInstancedBaseInstance, PFNGLDRAWARRAYSINSTANCEDBASEINSTANCEPROC, GLenum mode, GLint first, GLsizei count, GLsizei instancecount, GLuint baseinstance)
+#endif
+
+#ifdef LOAD_GL_DRAW_ELEMENTS_BASE_VERTEX
+    DECLARE_GL_FUNCTION( glDrawElementsBaseVertex, PFNGLDRAWELEMENTSBASEVERTEXPROC, GLenum mode, GLsizei count, GLenum type, const void *indices, GLint basevertex)
+#endif
+
+#ifdef LOAD_DEBUG_MESSAGE_CALLBACK
+    DECLARE_GL_FUNCTION( glDebugMessageCallback, PFNGLDEBUGMESSAGECALLBACKPROC, GLDEBUGPROC callback, const void *userParam)
+#endif
+
+#ifdef LOAD_DEBUG_MESSAGE_CONTROL
+    DECLARE_GL_FUNCTION( glDebugMessageControl, PFNGLDEBUGMESSAGECONTROLPROC, GLenum source, GLenum type, GLenum severity, GLsizei count, const GLuint* ids, GLboolean enabled);
+#endif
+
+#ifdef LOAD_GL_GET_QUERY_OBJECT_UI64V
+    DECLARE_GL_FUNCTION( glGetQueryObjectui64v, PFNGLGETQUERYOBJECTUI64VPROC, GLuint id, GLenum pname, GLuint64* params)
+#endif
+
+#ifdef LOAD_GL_QUERY_COUNTER
+    DECLARE_GL_FUNCTION( glQueryCounter, PFNGLQUERYCOUNTERPROC, GLuint id, GLenum target)
+#endif
+
 
 void LoadGLFunctions()
 {
@@ -161,67 +220,71 @@ Func = (FuncType)eglGetProcAddress( #Func );\
     if( !Func )Func = Func##Stub;
 
 #ifdef LOAD_GL_BIND_IMAGE_TEXTURE
-    LOAD_GL_FUNCTION( glBindImageTexture, PFNGLBINDIMAGETEXTUREPROC )
+    LOAD_GL_FUNCTION(glBindImageTexture, PFNGLBINDIMAGETEXTUREPROC)
 #endif
 
 #ifdef LOAD_GL_DISPATCH_COMPUTE
-    LOAD_GL_FUNCTION( glDispatchCompute, PFNGLDISPATCHCOMPUTEPROC )
+    LOAD_GL_FUNCTION(glDispatchCompute, PFNGLDISPATCHCOMPUTEPROC)
 #endif
 
 #ifdef LOAD_GEN_PROGRAM_PIPELINES
-    LOAD_GL_FUNCTION( glGenProgramPipelines, PFNGLGENPROGRAMPIPELINESPROC )
+    LOAD_GL_FUNCTION(glGenProgramPipelines, PFNGLGENPROGRAMPIPELINESPROC)
 #endif
 
 #ifdef LOAD_GL_DELETE_PROGRAM_PIPELINES
-    LOAD_GL_FUNCTION( glDeleteProgramPipelines, PFNGLDELETEPROGRAMPIPELINESPROC )
+    LOAD_GL_FUNCTION(glDeleteProgramPipelines, PFNGLDELETEPROGRAMPIPELINESPROC)
 #endif
 
 #ifdef LOAD_GL_BIND_PROGRAM_PIPELINE
-    LOAD_GL_FUNCTION( glBindProgramPipeline, PFNGLBINDPROGRAMPIPELINEPROC )
+    LOAD_GL_FUNCTION(glBindProgramPipeline, PFNGLBINDPROGRAMPIPELINEPROC)
 #endif
 
 #ifdef LOAD_GL_USE_PROGRAM_STAGES
-    LOAD_GL_FUNCTION( glUseProgramStages, PFNGLUSEPROGRAMSTAGESPROC )
+    LOAD_GL_FUNCTION(glUseProgramStages, PFNGLUSEPROGRAMSTAGESPROC)
 #endif
 
 #ifdef LOAD_GL_PROGRAM_UNIFORM_1I
-    LOAD_GL_FUNCTION( glProgramUniform1i, PFNGLPROGRAMUNIFORM1IPROC )
+    LOAD_GL_FUNCTION(glProgramUniform1i, PFNGLPROGRAMUNIFORM1IPROC)
 #endif
 
 #ifdef LOAD_GL_MEMORY_BARRIER 
-    LOAD_GL_FUNCTION( glMemoryBarrier,  PFNGLMEMORYBARRIERPROC )
+    LOAD_GL_FUNCTION(glMemoryBarrier,  PFNGLMEMORYBARRIERPROC)
 #endif
 
 #ifdef LOAD_DRAW_ELEMENTS_INDIRECT
-    LOAD_GL_FUNCTION( glDrawElementsIndirect, PFNGLDRAWELEMENTSINDIRECTPROC )
+    LOAD_GL_FUNCTION(glDrawElementsIndirect, PFNGLDRAWELEMENTSINDIRECTPROC)
 #endif
 
 #ifdef LOAD_DRAW_ARRAYS_INDIRECT
-    LOAD_GL_FUNCTION( glDrawArraysIndirect, PFNGLDRAWARRAYSINDIRECTPROC )
+    LOAD_GL_FUNCTION(glDrawArraysIndirect, PFNGLDRAWARRAYSINDIRECTPROC)
 #endif
 
 #ifdef LOAD_GL_TEX_STORAGE_2D_MULTISAMPLE
-    LOAD_GL_FUNCTION( glTexStorage2DMultisample, PFNGLTEXSTORAGE2DMULTISAMPLEPROC )
+    LOAD_GL_FUNCTION(glTexStorage2DMultisample, PFNGLTEXSTORAGE2DMULTISAMPLEPROC)
 #endif
 
 #ifdef LOAD_GL_GET_PROGRAM_INTERFACEIV
-    LOAD_GL_FUNCTION( glGetProgramInterfaceiv, PFNGLGETPROGRAMINTERFACEIVPROC )
+    LOAD_GL_FUNCTION(glGetProgramInterfaceiv, PFNGLGETPROGRAMINTERFACEIVPROC)
 #endif
 
 #ifdef LOAD_GL_GET_PROGRAM_RESOURCE_NAME
-    LOAD_GL_FUNCTION( glGetProgramResourceName, PFNGLGETPROGRAMRESOURCENAMEPROC )
+    LOAD_GL_FUNCTION(glGetProgramResourceName, PFNGLGETPROGRAMRESOURCENAMEPROC)
+#endif
+
+#ifdef LOAD_GL_GET_PROGRAM_RESOURCE_INDEX
+    LOAD_GL_FUNCTION(glGetProgramResourceIndex, PFNGLGETPROGRAMRESOURCEINDEXPROC)
 #endif
 
 #ifdef LOAD_GL_GET_PROGRAM_RESOURCEIV
-    LOAD_GL_FUNCTION( glGetProgramResourceiv, PFNGLGETPROGRAMRESOURCEIVPROC )
+    LOAD_GL_FUNCTION(glGetProgramResourceiv, PFNGLGETPROGRAMRESOURCEIVPROC)
 #endif
 
 #ifdef LOAD_DISPATCH_COMPUTE_INDIRECT
-    LOAD_GL_FUNCTION( glDispatchComputeIndirect, PFNGLDISPATCHCOMPUTEINDIRECTPROC )
+    LOAD_GL_FUNCTION(glDispatchComputeIndirect, PFNGLDISPATCHCOMPUTEINDIRECTPROC)
 #endif
 
 #ifdef LOAD_GL_TEX_BUFFER
-    LOAD_GL_FUNCTION( glTexBuffer, PFNGLTEXBUFFERPROC )
+    LOAD_GL_FUNCTION(glTexBuffer, PFNGLTEXBUFFERPROC)
 #endif
 
 #ifdef LOAD_GL_POLYGON_MODE
@@ -229,43 +292,43 @@ Func = (FuncType)eglGetProcAddress( #Func );\
 #endif
 
 #ifdef LOAD_GL_ENABLEI
-    LOAD_GL_FUNCTION( glEnablei, PFNGLENABLEIPROC)
+    LOAD_GL_FUNCTION(glEnablei, PFNGLENABLEIPROC)
 #endif
 
 #ifdef LOAD_GL_BLEND_FUNC_SEPARATEI 
-    LOAD_GL_FUNCTION( glBlendFuncSeparatei, PFNGLBLENDFUNCSEPARATEIPROC )
+    LOAD_GL_FUNCTION(glBlendFuncSeparatei, PFNGLBLENDFUNCSEPARATEIPROC)
 #endif
 
 #ifdef LOAD_GL_BLEND_EQUATION_SEPARATEI
-    LOAD_GL_FUNCTION( glBlendEquationSeparatei, PFNGLBLENDEQUATIONSEPARATEIPROC )
+    LOAD_GL_FUNCTION(glBlendEquationSeparatei, PFNGLBLENDEQUATIONSEPARATEIPROC)
 #endif
 
 #ifdef LOAD_GL_DISABLEI
-    LOAD_GL_FUNCTION( glDisablei, PFNGLDISABLEIPROC )
+    LOAD_GL_FUNCTION(glDisablei, PFNGLDISABLEIPROC)
 #endif
 
 #ifdef LOAD_GL_COLOR_MASKI
-    LOAD_GL_FUNCTION( glColorMaski, PFNGLCOLORMASKIPROC )
+    LOAD_GL_FUNCTION(glColorMaski, PFNGLCOLORMASKIPROC)
 #endif
 
 #ifdef LOAD_GL_VIEWPORT_INDEXEDF
-    LOAD_GL_FUNCTION( glViewportIndexedf, PFNGLVIEWPORTINDEXEDFPROC )
+    LOAD_GL_FUNCTION(glViewportIndexedf, PFNGLVIEWPORTINDEXEDFPROC)
 #endif
 
 #ifdef LOAD_GL_SCISSOR_INDEXED
-    LOAD_GL_FUNCTION( glScissorIndexed, PFNGLSCISSORINDEXEDPROC )
+    LOAD_GL_FUNCTION(glScissorIndexed, PFNGLSCISSORINDEXEDPROC)
 #endif
 
 #ifdef LOAD_GL_FRAMEBUFFER_TEXTURE
-    LOAD_GL_FUNCTION( glFramebufferTexture, PFNGLFRAMEBUFFERTEXTUREPROC )
+    LOAD_GL_FUNCTION(glFramebufferTexture, PFNGLFRAMEBUFFERTEXTUREPROC)
 #endif
 
 #ifdef LOAD_GL_FRAMEBUFFER_TEXTURE_1D
-    LOAD_GL_FUNCTION( glFramebufferTexture1D, PFNGLFRAMEBUFFERTEXTURE1DPROC )
+    LOAD_GL_FUNCTION(glFramebufferTexture1D, PFNGLFRAMEBUFFERTEXTURE1DPROC)
 #endif
 
 #ifdef LOAD_GL_FRAMEBUFFER_TEXTURE_3D
-    LOAD_GL_FUNCTION( glFramebufferTexture3D, PFNGLFRAMEBUFFERTEXTURE3DPROC )
+    LOAD_GL_FUNCTION(glFramebufferTexture3D, PFNGLFRAMEBUFFERTEXTURE3DPROC)
 #endif
 
 #ifdef LOAD_GL_COPY_IMAGE_SUB_DATA
@@ -279,5 +342,55 @@ Func = (FuncType)eglGetProcAddress( #Func );\
 
 #ifdef LOAD_GET_TEX_LEVEL_PARAMETER_IV
     LOAD_GL_FUNCTION(glGetTexLevelParameteriv, PFNGLGETTEXLEVELPARAMETERIVPROC)
+#endif
+
+#ifdef LOAD_GL_SHADER_STORAGE_BLOCK_BINDING
+    LOAD_GL_FUNCTION(glShaderStorageBlockBinding, PFNGLSHADERSTORAGEBLOCKBINDINGPROC)
+#endif
+
+#ifdef LOAD_GL_TEX_STORAGE_3D_MULTISAMPLE
+    LOAD_GL_FUNCTION(glTexStorage3DMultisample, PFNGLTEXSTORAGE3DMULTISAMPLEPROC)
+#endif
+
+#ifdef LOAD_GL_TEXTURE_VIEW
+    LOAD_GL_FUNCTION(glTextureView, PFNGLTEXTUREVIEWPROC)
+#endif
+
+#ifdef LOAD_GL_DRAW_ELEMENTS_INSTANCED_BASE_VERTEX_BASE_INSTANCE
+    LOAD_GL_FUNCTION(glDrawElementsInstancedBaseVertexBaseInstance, PFNGLDRAWELEMENTSINSTANCEDBASEVERTEXBASEINSTANCEPROC)
+#endif
+
+#ifdef LOAD_GL_DRAW_ELEMENTS_INSTANCED_BASE_VERTEX
+    LOAD_GL_FUNCTION(glDrawElementsInstancedBaseVertex, PFNGLDRAWELEMENTSINSTANCEDBASEVERTEXPROC)
+#endif
+
+#ifdef LOAD_GL_DRAW_ELEMENTS_INSTANCED_BASE_INSTANCE
+    LOAD_GL_FUNCTION(glDrawElementsInstancedBaseInstance, PFNGLDRAWELEMENTSINSTANCEDBASEINSTANCEPROC)
+#endif
+
+#ifdef LOAD_GL_DRAW_ARRAYS_INSTANCED_BASE_INSTANCE
+    LOAD_GL_FUNCTION(glDrawArraysInstancedBaseInstance, PFNGLDRAWARRAYSINSTANCEDBASEINSTANCEPROC)
+#endif
+
+#ifdef LOAD_GL_DRAW_ELEMENTS_BASE_VERTEX
+    LOAD_GL_FUNCTION(glDrawElementsBaseVertex, PFNGLDRAWELEMENTSBASEVERTEXPROC)
+#endif
+
+#ifdef LOAD_DEBUG_MESSAGE_CALLBACK
+    LOAD_GL_FUNCTION(glDebugMessageCallback, PFNGLDEBUGMESSAGECALLBACKPROC)
+#endif
+
+#ifdef LOAD_DEBUG_MESSAGE_CONTROL
+    LOAD_GL_FUNCTION(glDebugMessageControl, PFNGLDEBUGMESSAGECONTROLPROC);
+#endif
+
+#ifdef LOAD_GL_GET_QUERY_OBJECT_UI64V
+    // Do not use stub
+    glGetQueryObjectui64v = (PFNGLGETQUERYOBJECTUI64VPROC)eglGetProcAddress( "glGetQueryObjectui64vEXT" );
+#endif
+
+#ifdef LOAD_GL_QUERY_COUNTER
+    // Do not use stub
+    glQueryCounter = (PFNGLQUERYCOUNTERPROC)eglGetProcAddress( "glQueryCounterEXT" );
 #endif
 }

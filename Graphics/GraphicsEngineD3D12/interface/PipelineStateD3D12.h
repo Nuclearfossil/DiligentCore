@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -28,30 +32,54 @@
 
 #include "../../GraphicsEngine/interface/PipelineState.h"
 
-namespace Diligent
-{
+DILIGENT_BEGIN_NAMESPACE(Diligent)
 
 // {33C9BE4B-6F23-4F83-A665-5AC1836DF35A}
-static constexpr INTERFACE_ID IID_PipelineStateD3D12 = 
-{ 0x33c9be4b, 0x6f23, 0x4f83, { 0xa6, 0x65, 0x5a, 0xc1, 0x83, 0x6d, 0xf3, 0x5a } };
+static const INTERFACE_ID IID_PipelineStateD3D12 =
+    {0x33c9be4b, 0x6f23, 0x4f83, {0xa6, 0x65, 0x5a, 0xc1, 0x83, 0x6d, 0xf3, 0x5a}};
 
+#define DILIGENT_INTERFACE_NAME IPipelineStateD3D12
+#include "../../../Primitives/interface/DefineInterfaceHelperMacros.h"
 
-/// Interface to the blend state object implemented in D3D12
-class IPipelineStateD3D12 : public IPipelineState
+#define IPipelineStateD3D12InclusiveMethods \
+    IPipelineStateInclusiveMethods;         \
+    IPipelineStateD3D12Methods PipelineStateD3D12
+
+/// Exposes Direct3D12-specific functionality of a pipeline state object.
+DILIGENT_BEGIN_INTERFACE(IPipelineStateD3D12, IPipelineState)
 {
-public:
-
     /// Returns ID3D12PipelineState interface of the internal D3D12 pipeline state object object.
-    
+
     /// The method does *NOT* call AddRef() on the returned interface,
     /// so Release() must not be called.
-    virtual ID3D12PipelineState* GetD3D12PipelineState()const = 0;
+    VIRTUAL ID3D12PipelineState* METHOD(GetD3D12PipelineState)(THIS) CONST PURE;
+
+    /// Returns ID3D12StateObject interface of the internal D3D12 state object for ray tracing.
+
+    /// The method does *NOT* call AddRef() on the returned interface,
+    /// so Release() must not be called.
+    VIRTUAL ID3D12StateObject* METHOD(GetD3D12StateObject)(THIS) CONST PURE;
 
     /// Returns a pointer to the root signature object associated with this pipeline state.
-    
+
     /// The method does *NOT* call AddRef() on the returned interface,
     /// so Release() must not be called.
-    virtual ID3D12RootSignature* GetD3D12RootSignature()const = 0;
+    VIRTUAL ID3D12RootSignature* METHOD(GetD3D12RootSignature)(THIS) CONST PURE;
 };
+DILIGENT_END_INTERFACE
 
-}
+#include "../../../Primitives/interface/UndefInterfaceHelperMacros.h"
+
+#if DILIGENT_C_INTERFACE
+
+// clang-format off
+
+#    define IPipelineStateD3D12_GetD3D12PipelineState(This) CALL_IFACE_METHOD(PipelineStateD3D12, GetD3D12PipelineState, This)
+#    define IPipelineStateD3D12_GetD3D12StateObject(This)   CALL_IFACE_METHOD(PipelineStateD3D12, GetD3D12StateObject,   This)
+#    define IPipelineStateD3D12_GetD3D12RootSignature(This) CALL_IFACE_METHOD(PipelineStateD3D12, GetD3D12RootSignature, This)
+
+// clang-format on
+
+#endif
+
+DILIGENT_END_NAMESPACE // namespace Diligent

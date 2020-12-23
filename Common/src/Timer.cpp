@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -22,37 +26,39 @@
  */
 
 #include "pch.h"
-#include "Timer.h"
+#include "Timer.hpp"
 
 using namespace std::chrono;
 namespace Diligent
 {
-    Timer::Timer()
-    {
-        Restart();
-    }
 
-    void Timer::Restart()
-    {
-        m_StartTime = high_resolution_clock().now();
-    }
-
-    template<typename T>
-    T GetElapsedTime( high_resolution_clock::time_point StartTime )
-    {
-        auto CurrTime = high_resolution_clock::now();
-        auto time_span = duration_cast<duration<T>>(CurrTime - StartTime);
-        return time_span.count();
-    }
-
-    double Timer::GetElapsedTime()const
-    {
-        return Diligent::GetElapsedTime<double>( m_StartTime );
-    }
-
-    float Timer::GetElapsedTimef()const
-    {
-
-        return Diligent::GetElapsedTime<float>( m_StartTime );
-    }
+Timer::Timer()
+{
+    Restart();
 }
+
+void Timer::Restart()
+{
+    m_StartTime = high_resolution_clock().now();
+}
+
+template <typename T>
+T GetElapsedTime(high_resolution_clock::time_point StartTime)
+{
+    auto CurrTime  = high_resolution_clock::now();
+    auto time_span = duration_cast<duration<T>>(CurrTime - StartTime);
+    return time_span.count();
+}
+
+double Timer::GetElapsedTime() const
+{
+    return Diligent::GetElapsedTime<double>(m_StartTime);
+}
+
+float Timer::GetElapsedTimef() const
+{
+
+    return Diligent::GetElapsedTime<float>(m_StartTime);
+}
+
+} // namespace Diligent

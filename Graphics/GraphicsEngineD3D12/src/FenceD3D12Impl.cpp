@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -22,36 +26,45 @@
  */
 
 #include "pch.h"
+#include <thread>
 #include <atlbase.h>
 
-#include "FenceD3D12Impl.h"
+#include "FenceD3D12Impl.hpp"
 #include "EngineMemory.h"
-#include "RenderDeviceD3D12Impl.h"
+#include "RenderDeviceD3D12Impl.hpp"
 namespace Diligent
 {
-    
-FenceD3D12Impl :: FenceD3D12Impl(IReferenceCounters*    pRefCounters,
-                                 RenderDeviceD3D12Impl* pDevice,
-                                 const FenceDesc&       Desc) : 
-    TFenceBase(pRefCounters, pDevice, Desc)
+
+FenceD3D12Impl::FenceD3D12Impl(IReferenceCounters*    pRefCounters,
+                               RenderDeviceD3D12Impl* pDevice,
+                               const FenceDesc&       Desc) :
+    TFenceBase{pRefCounters, pDevice, Desc}
 {
     auto* pd3d12Device = ValidatedCast<RenderDeviceD3D12Impl>(pDevice)->GetD3D12Device();
-    auto hr = pd3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(m_pd3d12Fence), reinterpret_cast<void**>(static_cast<ID3D12Fence**>(&m_pd3d12Fence)));
+    auto  hr           = pd3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(m_pd3d12Fence), reinterpret_cast<void**>(static_cast<ID3D12Fence**>(&m_pd3d12Fence)));
     CHECK_D3D_RESULT_THROW(hr, "Failed to create D3D12 fence");
 }
 
-FenceD3D12Impl :: ~FenceD3D12Impl()
+FenceD3D12Impl::~FenceD3D12Impl()
 {
 }
 
-Uint64 FenceD3D12Impl :: GetCompletedValue()
+Uint64 FenceD3D12Impl::GetCompletedValue()
 {
-    return m_pd3d12Fence->GetCompletedValue();
+    Uint64 Result = m_pd3d12Fence->GetCompletedValue();
+    VERIFY(Result != UINT64_MAX, "If the device has been removed, the return value will be UINT64_MAX");
+    return Result;
 }
 
-void FenceD3D12Impl :: Reset(Uint64 Value)
+void FenceD3D12Impl::Reset(Uint64 Value)
 {
     m_pd3d12Fence->Signal(Value);
 }
 
+void FenceD3D12Impl::WaitForCompletion(Uint64 Value)
+{
+    while (GetCompletedValue() < Value)
+        std::this_thread::yield();
 }
+
+} // namespace Diligent

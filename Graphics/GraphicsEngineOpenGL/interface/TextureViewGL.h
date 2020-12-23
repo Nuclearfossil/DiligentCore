@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -28,19 +32,45 @@
 
 #include "../../GraphicsEngine/interface/TextureView.h"
 
-namespace Diligent
-{
+DILIGENT_BEGIN_NAMESPACE(Diligent)
 
 // {15F93272-6135-414F-AB10-53FF9A5004AD}
-static constexpr INTERFACE_ID IID_TextureViewGL =
-{ 0x15f93272, 0x6135, 0x414f, { 0xab, 0x10, 0x53, 0xff, 0x9a, 0x50, 0x4, 0xad } };
+static const INTERFACE_ID IID_TextureViewGL =
+    {0x15f93272, 0x6135, 0x414f, {0xab, 0x10, 0x53, 0xff, 0x9a, 0x50, 0x4, 0xad}};
 
-/// Interface to the texture view object implemented in OpenGL
-class ITextureViewGL : public ITextureView
+#define DILIGENT_INTERFACE_NAME ITextureViewGL
+#include "../../../Primitives/interface/DefineInterfaceHelperMacros.h"
+
+#define ITextureViewGLInclusiveMethods \
+    ITextureViewInclusiveMethods
+//ITextureViewGLMethods TextureViewGL
+
+#if DILIGENT_CPP_INTERFACE
+
+/// Exposes OpenGL-specific functionality of a texture view object.
+DILIGENT_BEGIN_INTERFACE(ITextureViewGL, ITextureView) //
 {
-public:
     //const GLObjectWrappers::GLTextureObj& GetHandle();
     //GLenum GetBindTarget();
 };
+DILIGENT_END_INTERFACE
 
-}
+#endif
+
+#include "../../../Primitives/interface/UndefInterfaceHelperMacros.h"
+
+#if DILIGENT_C_INTERFACE
+
+typedef struct ITextureViewGLVtbl
+{
+    ITextureViewGLInclusiveMethods;
+} ITextureViewGLVtbl;
+
+typedef struct ITextureViewGL
+{
+    struct ITextureViewGLVtbl* pVtbl;
+} ITextureViewGL;
+
+#endif
+
+DILIGENT_END_NAMESPACE // namespace Diligent

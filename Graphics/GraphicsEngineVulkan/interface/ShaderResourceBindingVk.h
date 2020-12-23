@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -28,18 +32,36 @@
 
 #include "../../GraphicsEngine/interface/ShaderResourceBinding.h"
 
-namespace Diligent
-{
+DILIGENT_BEGIN_NAMESPACE(Diligent)
 
 // {1E8C82DC-5B3A-47D5-8AE9-197CAE8DB71F}
-static constexpr INTERFACE_ID IID_ShaderResourceBindingVk =
-{ 0x1e8c82dc, 0x5b3a, 0x47d5,{ 0x8a, 0xe9, 0x19, 0x7c, 0xae, 0x8d, 0xb7, 0x1f } };
+static const INTERFACE_ID IID_ShaderResourceBindingVk =
+    {0x1e8c82dc, 0x5b3a, 0x47d5, {0x8a, 0xe9, 0x19, 0x7c, 0xae, 0x8d, 0xb7, 0x1f}};
 
-/// Shader resource binding interface
-class IShaderResourceBindingVk : public IShaderResourceBinding
+#define DILIGENT_INTERFACE_NAME IShaderResourceBindingVk
+#include "../../../Primitives/interface/DefineInterfaceHelperMacros.h"
+
+#define IShaderResourceBindingVkInclusiveMethods \
+    IShaderResourceBindingInclusiveMethods
+//IShaderResourceBindingVkMethods ShaderResourceBindingVk
+
+#if DILIGENT_CPP_INTERFACE
+
+/// Exposes Vulkan-specific functionality of a shader resource binding object.
+DILIGENT_BEGIN_INTERFACE(IShaderResourceBindingVk, IShaderResourceBinding){};
+DILIGENT_END_INTERFACE
+
+#endif
+
+#include "../../../Primitives/interface/UndefInterfaceHelperMacros.h"
+
+#if DILIGENT_C_INTERFACE
+
+typedef struct IShaderResourceBindingVkVtbl
 {
-public:
+    IShaderResourceBindingVkInclusiveMethods;
+} IShaderResourceBindingVkVtbl;
 
-};
+#endif
 
-}
+DILIGENT_END_NAMESPACE // namespace Diligent

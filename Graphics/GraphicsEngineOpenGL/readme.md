@@ -1,32 +1,32 @@
 
 # GraphicsEngineOpenGL
 
-Implementation of Diligent Engine API using OpenGL/GLES
+Implementation of OpenGL/GLES back-end
 
 # Initialization
 
-The following code snippet shows how to initialize diligent engine in OpenGL/GLES mode.
+The following code snippet shows how to initialize Diligent Engine in OpenGL/GLES mode.
 
 ```cpp
-#include "RenderDeviceFactoryOpenGL.h"
+#include "EngineFactoryOpenGL.h"
 using namespace Diligent;
 
 // ...
 
 #if ENGINE_DLL
-    GetEngineFactoryOpenGLType GetEngineFactoryOpenGL;
-    if( !LoadGraphicsEngineOpenGL(GetEngineFactoryOpenGL) )
-        return FALSE;
+    auto GetEngineFactoryOpenGL = LoadGraphicsEngineOpenGL();
+    if (GetEngineFactoryOpenGL == nullptr)
+        return false;
 #endif
 RefCntAutoPtr<IRenderDevice> pRenderDevice;
 RefCntAutoPtr<IDeviceContext> pImmediateContext;
 SwapChainDesc SCDesc;
 RefCntAutoPtr<ISwapChain> pSwapChain;
-auto *pFactoryOpenGL = GetEngineFactoryOpenGL();
-EngineGLAttribs CreationAttribs;
-CreationAttribs.pNativeWndHandle = NativeWindowHandle;
+auto* pFactoryOpenGL = GetEngineFactoryOpenGL();
+EngineGLCreateInfo EngineCI;
+EngineCI = NativeWindowHandle;
 pFactoryOpenGL->CreateDeviceAndSwapChainGL(
-    CreationAttribs, &pRenderDevice, &pImmediateContext, SCDesc, &pSwapChain);
+    EngineCI, &pRenderDevice, &pImmediateContext, SCDesc, &pSwapChain);
 ```
 
 Alternatively, the engine can be initialized by attaching to existing OpenGL context (see [below](#initializing-the-engine-by-attaching-to-existing-gl-context)).
@@ -50,15 +50,17 @@ Below are some of the methods that provide access to internal D3D11 objects:
 
 ## Creating Diligent Engine Objects from OpenGL Handles
 
-* `void IRenderDeviceGL::CreateTextureFromGLHandle(Uint32 GLHandle, const TextureDesc &TexDesc, ITexture **ppTexture)` -
-    creates a diligent engine texture from OpenGL handle. The method takes OpenGL handle GLHandle, texture description TexDesc,
-    and writes the pointer to the created texture object at the memory address pointed to by ppTexture. The engine can automatically
-    set texture width, height, depth, mip levels count, and format, but the remaining field of TexDesc structure must be populated by
+* `void IRenderDeviceGL::CreateTextureFromGLHandle(Uint32 GLHandle, Uint32 GLBindTarget, const TextureDesc& TexDesc, RESOURCE_STATE InitialState, ITexture** ppTexture)` -
+    creates a diligent engine texture from OpenGL handle. The method takes OpenGL handle `GLHandle`, texture bind target `GLBindTarget`
+    (when null value is provided, the engine automatically selects the target that corresponds to the texture type, e.g. GL_TEXTURE_2D
+    for a 2D texture), texture description `TexDesc`, as well as initial state `InitialState`,
+    and writes the pointer to the created texture object at the memory address pointed to by `ppTexture`. The engine can automatically
+    set texture width, height, depth, mip levels count, and format, but the remaining field of `TexDesc` structure must be populated by
     the application. Note that diligent engine texture object does not take ownership of the GL resource, and the application must
     not destroy it while it is in use by the engine.
-* `void IRenderDeviceGL::CreateBufferFromGLHandle(Uint32 GLHandle, const BufferDesc &BuffDesc, IBuffer **ppBuffer)` -
-    creates a diligent engine buffer from OpenGL handle. The method takes OpenGL handle GLHandle, buffer description BuffDesc,
-    and writes the pointer to the created buffer object at the memory address pointed to by ppBuffer. The engine can automatically
+* `void IRenderDeviceGL::CreateBufferFromGLHandle(Uint32 GLHandle, const BufferDesc& BuffDesc, RESOURCE_STATE InitialState, IBuffer** ppBuffer)` -
+    creates a diligent engine buffer from OpenGL handle. The method takes OpenGL handle `GLHandle`, buffer description `BuffDesc`,
+    and writes the pointer to the created buffer object at the memory address pointed to by `ppBuffer`. The engine can automatically
     set the buffer size, but the rest of the fields need to be set by the client. Note that diligent engine buffer object does not
     take ownership of the GL resource, and the application must not destroy it while it is in use by the engine.
 
@@ -67,7 +69,7 @@ Below are some of the methods that provide access to internal D3D11 objects:
 The code snippet below shows how diligent engine can be attached to existing GL context
 
 ```cpp
-auto *pFactoryGL = GetEngineFactoryOpenGL();
+auto* pFactoryGL = GetEngineFactoryOpenGL();
 EngineCreationAttribs Attribs;
 pFactoryGL->AttachToActiveGLContext(Attribs, &m_Device, &m_Context);
 ```
@@ -76,40 +78,11 @@ For more information about interoperability with OpenGL, please visit [Diligent 
 
 # References
 
-[Diligent Engine](http://diligentgraphics.com/diligent-engine)
-
 [Interoperability with OpenGL/GLES](http://diligentgraphics.com/diligent-engine/native-api-interoperability/openglgles-interoperability/)
 
-# Release Notes
-
-## 2.1
-
-### New features
-
-* Interoperability with OpenGL/GLES
-  - Accessing GL handles of internal texture/buffer objects
-  - Createing diligent engine buffers/textures from OpenGL handles
-  - Attaching to existing OpenGL context
-* Integraion with Unity
-* Geometry shader support
-* Tessellation support
-* Support ofr multiple GL contexts: VAO, FBO & Program Pipelines are created and cached for multiple native contexts. 
-  `IDeviceContextGL::UpdateCurrentGLContext()` sets the active GL context in the thread
-
-### API Changes
-
-* Updated map interface: removed MAP_WRITE_DISCARD and MAP_WRITE_NO_OVERWRITE map types and added MAP_FLAG_DISCARD and MAP_FLAG_DO_NOT_SYNCHRONIZE flags instead
-
-## 2.0
-
-Reworked the API to follow D3D12 style
-
-## 1.0
-
-Initial release
-
-
-
-**Copyright 2015-2018 Egor Yusov**
+-------------------
 
 [diligentgraphics.com](http://diligentgraphics.com)
+
+[![Diligent Engine on Twitter](https://github.com/DiligentGraphics/DiligentCore/blob/master/media/twitter.png)](https://twitter.com/diligentengine)
+[![Diligent Engine on Facebook](https://github.com/DiligentGraphics/DiligentCore/blob/master/media/facebook.png)](https://www.facebook.com/DiligentGraphics/)

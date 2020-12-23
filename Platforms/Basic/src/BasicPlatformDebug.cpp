@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -21,48 +25,46 @@
  *  of the possibility of such damages.
  */
 
-#include "BasicPlatformDebug.h"
-#include "FormatMessage.h"
-#include "BasicFileSystem.h"
+#include "BasicPlatformDebug.hpp"
+#include "FormatString.hpp"
+#include "BasicFileSystem.hpp"
 #include <iostream>
 
 using namespace Diligent;
 
-String BasicPlatformDebug :: FormatAssertionFailedMessage( const Char *Message, 
-                                                           const char *Function, // type of __FUNCTION__
-                                                           const char *File,     // type of __FILE__
-                                                           int Line )
+String BasicPlatformDebug::FormatAssertionFailedMessage(const char* Message,
+                                                        const char* Function, // type of __FUNCTION__
+                                                        const char* File,     // type of __FILE__
+                                                        int         Line)
 {
     String FileName;
-    BasicFileSystem::SplitFilePath( File, nullptr, &FileName );
-    std::stringstream msgss;
-    Diligent::FormatMsg( msgss, "Debug assertion failed in ", Function, "(), file ", FileName, ", line ", Line, ":\n", Message);
-    return msgss.str();
+    BasicFileSystem::SplitFilePath(File, nullptr, &FileName);
+    return Diligent::FormatString("Debug assertion failed in ", Function, "(), file ", FileName, ", line ", Line, ":\n", Message);
 }
 
-String BasicPlatformDebug::FormatDebugMessage(DebugMessageSeverity Severity, 
-                                              const Char* Message, 
-                                              const char* Function, // type of __FUNCTION__
-                                              const char* File,     // type of __FILE__
-                                              int Line)
+String BasicPlatformDebug::FormatDebugMessage(DEBUG_MESSAGE_SEVERITY Severity,
+                                              const Char*            Message,
+                                              const char*            Function, // type of __FUNCTION__
+                                              const char*            File,     // type of __FILE__
+                                              int                    Line)
 {
     std::stringstream msg_ss;
 
-    static const Char* const strSeverities[] = { "Info", "Warning", "ERROR", "CRITICAL ERROR" };
-    const auto* MessageSevery = strSeverities[static_cast<int>(Severity)];
-    
+    static const Char* const strSeverities[] = {"Info", "Warning", "ERROR", "CRITICAL ERROR"};
+    const auto*              MessageSevery   = strSeverities[static_cast<int>(Severity)];
+
     msg_ss << "Diligent Engine: " << MessageSevery;
-    if(Function != nullptr || File != nullptr)
+    if (Function != nullptr || File != nullptr)
     {
         msg_ss << " in ";
-        if(Function != nullptr)
+        if (Function != nullptr)
         {
             msg_ss << Function << "()";
-            if(File != nullptr)
+            if (File != nullptr)
                 msg_ss << " (";
         }
 
-        if(File != nullptr)
+        if (File != nullptr)
         {
             msg_ss << File << ", " << Line << ')';
         }

@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -22,11 +26,11 @@
  */
 
 #include "pch.h"
-#include "D3D11TypeConversions.h"
+#include "D3D11TypeConversions.hpp"
 
 #include "D3D11TypeDefinitions.h"
-#include "D3DTypeConversionImpl.h"
-#include "D3DViewDescConversionImpl.h"
+#include "D3DTypeConversionImpl.hpp"
+#include "D3DViewDescConversionImpl.hpp"
 
 namespace Diligent
 {
@@ -46,23 +50,26 @@ D3D11_COMPARISON_FUNC ComparisonFuncToD3D11ComparisonFunc(COMPARISON_FUNCTION Fu
     return ComparisonFuncToD3DComparisonFunc<D3D11_COMPARISON_FUNC>(Func);
 }
 
-void DepthStencilStateDesc_To_D3D11_DEPTH_STENCIL_DESC(const DepthStencilStateDesc& DepthStencilDesc, D3D11_DEPTH_STENCIL_DESC& d3d11DSSDesc)
+void DepthStencilStateDesc_To_D3D11_DEPTH_STENCIL_DESC(const DepthStencilStateDesc& DepthStencilDesc,
+                                                       D3D11_DEPTH_STENCIL_DESC&    d3d11DSSDesc)
 {
     DepthStencilStateDesc_To_D3D_DEPTH_STENCIL_DESC<D3D11_DEPTH_STENCIL_DESC, D3D11_DEPTH_STENCILOP_DESC, D3D11_STENCIL_OP, D3D11_COMPARISON_FUNC>(DepthStencilDesc, d3d11DSSDesc);
 }
 
-void RasterizerStateDesc_To_D3D11_RASTERIZER_DESC(const RasterizerStateDesc& RasterizerDesc, D3D11_RASTERIZER_DESC& d3d11RSDesc)
+void RasterizerStateDesc_To_D3D11_RASTERIZER_DESC(const RasterizerStateDesc& RasterizerDesc,
+                                                  D3D11_RASTERIZER_DESC&     d3d11RSDesc)
 {
     RasterizerStateDesc_To_D3D_RASTERIZER_DESC<D3D11_RASTERIZER_DESC, D3D11_FILL_MODE, D3D11_CULL_MODE>(RasterizerDesc, d3d11RSDesc);
-    d3d11RSDesc.ScissorEnable         = RasterizerDesc.ScissorEnable         ? TRUE : FALSE;    
+    d3d11RSDesc.ScissorEnable = RasterizerDesc.ScissorEnable ? TRUE : FALSE;
 }
 
 
-void BlendStateDesc_To_D3D11_BLEND_DESC(const BlendStateDesc& BSDesc, D3D11_BLEND_DESC& d3d11BSDesc)
+void BlendStateDesc_To_D3D11_BLEND_DESC(const BlendStateDesc& BSDesc,
+                                        D3D11_BLEND_DESC&     d3d11BSDesc)
 {
     BlendStateDescToD3DBlendDesc<D3D11_BLEND_DESC, D3D11_BLEND, D3D11_BLEND_OP>(BSDesc, d3d11BSDesc);
 
-    for( int i = 0; i < 8; ++i )
+    for (int i = 0; i < 8; ++i)
     {
         const auto& SrcRTDesc = BSDesc.RenderTargets[i];
         if (SrcRTDesc.LogicOperationEnable)
@@ -72,10 +79,10 @@ void BlendStateDesc_To_D3D11_BLEND_DESC(const BlendStateDesc& BSDesc, D3D11_BLEN
     }
 }
 
-void LayoutElements_To_D3D11_INPUT_ELEMENT_DESCs(const std::vector<LayoutElement, STDAllocatorRawMem<LayoutElement> >& LayoutElements, 
-                                                 std::vector<D3D11_INPUT_ELEMENT_DESC, STDAllocatorRawMem<D3D11_INPUT_ELEMENT_DESC> >& D3D11InputElements)
+void LayoutElements_To_D3D11_INPUT_ELEMENT_DESCs(const InputLayoutDesc&                                                               InputLayout,
+                                                 std::vector<D3D11_INPUT_ELEMENT_DESC, STDAllocatorRawMem<D3D11_INPUT_ELEMENT_DESC>>& D3D11InputElements)
 {
-    LayoutElements_To_D3D_INPUT_ELEMENT_DESCs<D3D11_INPUT_ELEMENT_DESC>(LayoutElements, D3D11InputElements);
+    LayoutElements_To_D3D_INPUT_ELEMENT_DESCs<D3D11_INPUT_ELEMENT_DESC>(InputLayout, D3D11InputElements);
 }
 
 D3D11_PRIMITIVE_TOPOLOGY TopologyToD3D11Topology(PRIMITIVE_TOPOLOGY Topology)
@@ -85,37 +92,62 @@ D3D11_PRIMITIVE_TOPOLOGY TopologyToD3D11Topology(PRIMITIVE_TOPOLOGY Topology)
 
 
 
-void TextureViewDesc_to_D3D11_SRV_DESC(const TextureViewDesc& TexViewDesc, D3D11_SHADER_RESOURCE_VIEW_DESC& D3D11SRVDesc, Uint32 SampleCount)
+void TextureViewDesc_to_D3D11_SRV_DESC(const TextureViewDesc&           TexViewDesc,
+                                       D3D11_SHADER_RESOURCE_VIEW_DESC& D3D11SRVDesc,
+                                       Uint32                           SampleCount)
 {
     TextureViewDesc_to_D3D_SRV_DESC(TexViewDesc, D3D11SRVDesc, SampleCount);
 }
 
-void TextureViewDesc_to_D3D11_RTV_DESC(const TextureViewDesc& TexViewDesc, D3D11_RENDER_TARGET_VIEW_DESC& D3D11RTVDesc, Uint32 SampleCount)
+void TextureViewDesc_to_D3D11_RTV_DESC(const TextureViewDesc&         TexViewDesc,
+                                       D3D11_RENDER_TARGET_VIEW_DESC& D3D11RTVDesc,
+                                       Uint32                         SampleCount)
 {
     TextureViewDesc_to_D3D_RTV_DESC(TexViewDesc, D3D11RTVDesc, SampleCount);
 }
 
-void TextureViewDesc_to_D3D11_DSV_DESC(const TextureViewDesc& TexViewDesc, D3D11_DEPTH_STENCIL_VIEW_DESC& D3D11DSVDesc, Uint32 SampleCount)
+void TextureViewDesc_to_D3D11_DSV_DESC(const TextureViewDesc&         TexViewDesc,
+                                       D3D11_DEPTH_STENCIL_VIEW_DESC& D3D11DSVDesc,
+                                       Uint32                         SampleCount)
 {
     TextureViewDesc_to_D3D_DSV_DESC(TexViewDesc, D3D11DSVDesc, SampleCount);
 }
 
-void TextureViewDesc_to_D3D11_UAV_DESC(const TextureViewDesc& TexViewDesc, D3D11_UNORDERED_ACCESS_VIEW_DESC& D3D11UAVDesc)
+void TextureViewDesc_to_D3D11_UAV_DESC(const TextureViewDesc&            TexViewDesc,
+                                       D3D11_UNORDERED_ACCESS_VIEW_DESC& D3D11UAVDesc)
 {
     TextureViewDesc_to_D3D_UAV_DESC(TexViewDesc, D3D11UAVDesc);
 }
 
 
 
-void BufferViewDesc_to_D3D11_SRV_DESC(const BufferDesc& BuffDesc, const BufferViewDesc& SRVDesc, D3D11_SHADER_RESOURCE_VIEW_DESC& D3D11SRVDesc)
+void BufferViewDesc_to_D3D11_SRV_DESC(const BufferDesc&                BuffDesc,
+                                      const BufferViewDesc&            SRVDesc,
+                                      D3D11_SHADER_RESOURCE_VIEW_DESC& D3D11SRVDesc)
 {
-    BufferViewDesc_to_D3D_SRV_DESC(BuffDesc, SRVDesc, D3D11SRVDesc);
+    if (BuffDesc.Mode == BUFFER_MODE_RAW && SRVDesc.Format.ValueType == VT_UNDEFINED)
+    {
+        // Raw buffer view
+        UINT ElementByteStride = 4;
+        DEV_CHECK_ERR((SRVDesc.ByteOffset % 16) == 0, "Byte offest (", SRVDesc.ByteOffset, ") is not multiple of 16");
+        DEV_CHECK_ERR((SRVDesc.ByteWidth % ElementByteStride) == 0, "Byte width (", SRVDesc.ByteWidth, ") is not multiple of 4");
+        D3D11SRVDesc.BufferEx.FirstElement = SRVDesc.ByteOffset / ElementByteStride;
+        D3D11SRVDesc.BufferEx.NumElements  = SRVDesc.ByteWidth / ElementByteStride;
+        D3D11SRVDesc.BufferEx.Flags        = D3D11_BUFFEREX_SRV_FLAG_RAW;
+        D3D11SRVDesc.Format                = DXGI_FORMAT_R32_TYPELESS;
+        D3D11SRVDesc.ViewDimension         = D3D_SRV_DIMENSION_BUFFEREX;
+    }
+    else
+    {
+        BufferViewDesc_to_D3D_SRV_DESC(BuffDesc, SRVDesc, D3D11SRVDesc);
+    }
 }
 
-void BufferViewDesc_to_D3D11_UAV_DESC(const BufferDesc& BuffDesc, const BufferViewDesc& UAVDesc, D3D11_UNORDERED_ACCESS_VIEW_DESC& D3D11UAVDesc)
+void BufferViewDesc_to_D3D11_UAV_DESC(const BufferDesc&                 BuffDesc,
+                                      const BufferViewDesc&             UAVDesc,
+                                      D3D11_UNORDERED_ACCESS_VIEW_DESC& D3D11UAVDesc)
 {
     BufferViewDesc_to_D3D_UAV_DESC(BuffDesc, UAVDesc, D3D11UAVDesc);
-    D3D11UAVDesc.Buffer.Flags = 0; // D3D11_BUFFER_UAV_FLAG_RAW, D3D11_BUFFER_UAV_FLAG_APPEND, D3D11_BUFFER_UAV_FLAG_COUNTER
 }
 
-}
+} // namespace Diligent

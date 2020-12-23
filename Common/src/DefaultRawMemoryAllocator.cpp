@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -22,36 +26,30 @@
  */
 
 #include "pch.h"
-#include "DefaultRawMemoryAllocator.h"
+#include "DefaultRawMemoryAllocator.hpp"
 
 namespace Diligent
 {
-    DefaultRawMemoryAllocator::DefaultRawMemoryAllocator()
-    {
 
-    }
-
-    void* DefaultRawMemoryAllocator::Allocate( size_t Size, const Char* dbgDescription, const char* dbgFileName, const  Int32 dbgLineNumber)
-    {
-#ifdef _DEBUG
-        return new Uint8[Size+16]+16;
-#else
-        return new Uint8[Size];
-#endif
-    }
-
-    void DefaultRawMemoryAllocator::Free(void *Ptr)
-    {
-#ifdef _DEBUG
-        delete[] (reinterpret_cast<char*>(Ptr)-16);
-#else
-        delete[] Ptr;
-#endif
-    }
-
-    DefaultRawMemoryAllocator& DefaultRawMemoryAllocator::GetAllocator()
-    {
-        static DefaultRawMemoryAllocator Allocator;
-        return Allocator;
-    }
+DefaultRawMemoryAllocator::DefaultRawMemoryAllocator()
+{
 }
+
+void* DefaultRawMemoryAllocator::Allocate(size_t Size, const Char* dbgDescription, const char* dbgFileName, const Int32 dbgLineNumber)
+{
+    VERIFY_EXPR(Size > 0);
+    return new Uint8[Size];
+}
+
+void DefaultRawMemoryAllocator::Free(void* Ptr)
+{
+    delete[] reinterpret_cast<Uint8*>(Ptr);
+}
+
+DefaultRawMemoryAllocator& DefaultRawMemoryAllocator::GetAllocator()
+{
+    static DefaultRawMemoryAllocator Allocator;
+    return Allocator;
+}
+
+} // namespace Diligent

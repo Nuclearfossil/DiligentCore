@@ -2,12 +2,13 @@ cmake_minimum_required (VERSION 3.3)
 
 project(WindowsPlatform CXX)
 
-set(INCLUDE 
-    include/Win32Atomics.h
-    include/Win32Debug.h
-    include/Win32FileSystem.h
-    include/Win32PlatformDefinitions.h
-    include/Win32PlatformMisc.h
+set(INTERFACE
+    interface/Win32Atomics.hpp
+    interface/Win32Debug.hpp
+    interface/Win32FileSystem.hpp
+    interface/Win32PlatformDefinitions.h
+    interface/Win32PlatformMisc.hpp
+    interface/Win32NativeWindow.h
 )
 
 set(SOURCE 
@@ -16,25 +17,31 @@ set(SOURCE
     src/Win32FileSystem.cpp
 )
 
-add_library(Win32Platform ${SOURCE} ${INCLUDE} ${PLATFORM_INTERFACE_HEADERS})
-set_common_target_properties(Win32Platform)
+add_library(Diligent-Win32Platform ${SOURCE} ${INTERFACE} ${PLATFORM_INTERFACE_HEADERS})
+set_common_target_properties(Diligent-Win32Platform)
 
-target_include_directories(Win32Platform 
+target_include_directories(Diligent-Win32Platform 
 PUBLIC
-    include
+    interface
 )
 
-target_link_libraries(Win32Platform 
+target_link_libraries(Diligent-Win32Platform 
 PUBLIC
-    BuildSettings 
-    BasicPlatform
-    PlatformInterface
+    Diligent-BasicPlatform
+    Diligent-PlatformInterface
+PRIVATE
+    Diligent-BuildSettings
+    Shlwapi.lib
 )
 
 source_group("src" FILES ${SOURCE})
-source_group("include" FILES ${INCLUDE})
-source_group("interface" FILES ${PLATFORM_INTERFACE_HEADERS})
+source_group("interface\\win32" FILES ${INTERFACE})
+source_group("interface\\common" FILES ${PLATFORM_INTERFACE_HEADERS})
 
-set_target_properties(Win32Platform PROPERTIES
-    FOLDER Core/Platforms
+set_target_properties(Diligent-Win32Platform PROPERTIES
+    FOLDER DiligentCore/Platforms
 )
+
+if(DILIGENT_INSTALL_CORE)
+    install_core_lib(Diligent-Win32Platform)
+endif()

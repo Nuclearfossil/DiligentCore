@@ -1,31 +1,39 @@
 cmake_minimum_required (VERSION 3.6)
 
-project(Common CXX)
+project(Diligent-Common CXX)
 
 set(INCLUDE 
     include/pch.h
 )
 
 set(INTERFACE 
-    interface/AdvancedMath.h
-    interface/BasicMath.h
-    interface/BasicFileStream.h
-    interface/DataBlobImpl.h
-    interface/DefaultRawMemoryAllocator.h
-    interface/FileWrapper.h
-    interface/FixedBlockMemoryAllocator.h
-    interface/HashUtils.h
-    interface/LockHelper.h 
-    interface/ObjectBase.h
-    interface/RefCntAutoPtr.h
-    interface/RefCountedObjectImpl.h
-    interface/STDAllocator.h
-    interface/StringDataBlobImpl.h
-    interface/StringTools.h
-    interface/StringPool.h
-    interface/Timer.h
-    interface/UniqueIdentifier.h
-    interface/ValidatedCast.h
+    interface/AdvancedMath.hpp
+    interface/Align.hpp
+    interface/BasicMath.hpp
+    interface/BasicFileStream.hpp
+    interface/DataBlobImpl.hpp
+    interface/DefaultRawMemoryAllocator.hpp
+    interface/FastRand.hpp
+    interface/FileWrapper.hpp
+    interface/FilteringTools.hpp
+    interface/FixedBlockMemoryAllocator.hpp
+    interface/HashUtils.hpp
+    interface/LockHelper.hpp 
+    interface/FixedLinearAllocator.hpp 
+    interface/DynamicLinearAllocator.hpp 
+    interface/MemoryFileStream.hpp 
+    interface/ObjectBase.hpp
+    interface/RefCntAutoPtr.hpp
+    interface/RefCountedObjectImpl.hpp
+    interface/STDAllocator.hpp
+    interface/StringDataBlobImpl.hpp
+    interface/StringTools.hpp
+    interface/StringPool.hpp
+    interface/ThreadSignal.hpp
+    interface/Timer.hpp
+    interface/UniqueIdentifier.hpp
+    interface/ValidatedCast.hpp
+    interface/CompilerDefinitions.h
 )
 
 set(SOURCE 
@@ -33,29 +41,36 @@ set(SOURCE
     src/DataBlobImpl.cpp
     src/DefaultRawMemoryAllocator.cpp
     src/FixedBlockMemoryAllocator.cpp
+    src/LockHelper.cpp
+    src/MemoryFileStream.cpp
     src/Timer.cpp
 )
 
-add_library(Common STATIC ${SOURCE} ${INCLUDE} ${INTERFACE})
+add_library(Diligent-Common STATIC ${SOURCE} ${INCLUDE} ${INTERFACE})
 
-target_include_directories(Common 
+target_include_directories(Diligent-Common 
 PRIVATE
     include
 PUBLIC 
     interface
 )
 
-target_link_libraries(Common 
+target_link_libraries(Diligent-Common 
+PRIVATE
+    Diligent-BuildSettings
 PUBLIC
-    BuildSettings
-    TargetPlatform 
+    Diligent-TargetPlatform 
 )
-set_common_target_properties(Common)
+set_common_target_properties(Diligent-Common)
 
 source_group("src" FILES ${SOURCE})
 source_group("include" FILES ${INCLUDE})
 source_group("interface" FILES ${INTERFACE})
 
-set_target_properties(Common PROPERTIES
-    FOLDER Core
+set_target_properties(Diligent-Common PROPERTIES
+    FOLDER DiligentCore
 )
+
+if(DILIGENT_INSTALL_CORE)
+    install_core_lib(Diligent-Common)
+endif()

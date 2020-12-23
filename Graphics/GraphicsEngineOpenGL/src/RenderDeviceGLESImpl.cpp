@@ -23,29 +23,35 @@
 
 #include "pch.h"
 
-#include "RenderDeviceGLESImpl.h"
+#include "RenderDeviceGLESImpl.hpp"
 
 namespace Diligent
 {
-    RenderDeviceGLESImpl::RenderDeviceGLESImpl( IReferenceCounters *pRefCounters, IMemoryAllocator &RawMemAllocator, const EngineGLAttribs &InitAttribs ) :
-        RenderDeviceGLImpl( pRefCounters, RawMemAllocator, InitAttribs )
-    {
-    }
 
-    IMPLEMENT_QUERY_INTERFACE( RenderDeviceGLESImpl, IID_RenderDeviceGLES, RenderDeviceGLImpl )
-
-    bool RenderDeviceGLESImpl::Invalidate()
-    {
-        return m_GLContext.Invalidate();
-    }
-
-    void RenderDeviceGLESImpl::Suspend()
-    {
-        m_GLContext.Suspend();
-    }
-
-    EGLint RenderDeviceGLESImpl::Resume( ANativeWindow* window )
-    {
-        return m_GLContext.Resume(window);
-    }
+RenderDeviceGLESImpl::RenderDeviceGLESImpl(IReferenceCounters*       pRefCounters,
+                                           IMemoryAllocator&         RawMemAllocator,
+                                           IEngineFactory*           pEngineFactory,
+                                           const EngineGLCreateInfo& InitAttribs,
+                                           const SwapChainDesc*      pSCDesc) :
+    RenderDeviceGLImpl(pRefCounters, RawMemAllocator, pEngineFactory, InitAttribs, pSCDesc)
+{
 }
+
+IMPLEMENT_QUERY_INTERFACE(RenderDeviceGLESImpl, IID_RenderDeviceGLES, RenderDeviceGLImpl)
+
+bool RenderDeviceGLESImpl::Invalidate()
+{
+    return m_GLContext.Invalidate();
+}
+
+void RenderDeviceGLESImpl::Suspend()
+{
+    m_GLContext.Suspend();
+}
+
+EGLint RenderDeviceGLESImpl::Resume(ANativeWindow* window)
+{
+    return m_GLContext.Resume(window);
+}
+
+} // namespace Diligent

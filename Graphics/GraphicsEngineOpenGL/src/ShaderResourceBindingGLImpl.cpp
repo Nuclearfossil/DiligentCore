@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -22,102 +26,127 @@
  */
 
 #include "pch.h"
-#include "ShaderResourceBindingGLImpl.h"
-#include "PipelineStateGLImpl.h"
-#include "ShaderGLImpl.h"
-#include "FixedBlockMemoryAllocator.h"
+#include "ShaderResourceBindingGLImpl.hpp"
+#include "PipelineStateGLImpl.hpp"
+#include "ShaderGLImpl.hpp"
+#include "FixedBlockMemoryAllocator.hpp"
 
 namespace Diligent
 {
 
-ShaderResourceBindingGLImpl::ShaderResourceBindingGLImpl( IReferenceCounters *pRefCounters, PipelineStateGLImpl *pPSO) :
-    TBase( pRefCounters, pPSO ),
-    m_DummyShaderVar(*this),
-    m_wpPSO(pPSO)
+ShaderResourceBindingGLImpl::ShaderResourceBindingGLImpl(IReferenceCounters*  pRefCounters,
+                                                         PipelineStateGLImpl* pPSO,
+                                                         GLProgramResources*  ProgramResources,
+                                                         Uint32               NumPrograms) :
+    // clang-format off
+    TBase
+    {
+        pRefCounters,
+        pPSO
+    },
+    m_ResourceLayout{*this}
+// clang-format on
 {
-    SHADER_VARIABLE_TYPE VarTypes[] = {SHADER_VARIABLE_TYPE_MUTABLE, SHADER_VARIABLE_TYPE_DYNAMIC};
-    if ( static_cast<GLuint>( pPSO->GetGLProgram() ) )
-    {
-        m_DynamicProgResources[0].Clone(pPSO->GetGLProgram().GetAllResources(), VarTypes, _countof(VarTypes), *this);
-    }
-    else
-    {
-#define INIT_SHADER(SN)\
-        if(auto p##SN = ValidatedCast<ShaderGLImpl>( pPSO->Get##SN() ))     \
-        {                                                                   \
-            auto &GLProg = p##SN->GetGlProgram();                           \
-            m_DynamicProgResources[SN##Ind].Clone(GLProg.GetAllResources(), VarTypes, _countof(VarTypes), *this); \
-        }
+    pPSO->InitializeSRBResourceCache(m_ResourceCache);
 
-        INIT_SHADER(VS)
-        INIT_SHADER(PS)
-        INIT_SHADER(GS)
-        INIT_SHADER(HS)
-        INIT_SHADER(DS)
-        INIT_SHADER(CS)
-#undef INIT_SHADER
-    }
+    // Copy only mutable and dynamic variables from master resource layout
+    const SHADER_RESOURCE_VARIABLE_TYPE SRBVarTypes[] = {SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE, SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC};
+
+    const auto& ResourceLayout = pPSO->GetDesc().ResourceLayout;
+    m_ResourceLayout.Initialize(ProgramResources, NumPrograms, pPSO->GetDesc().PipelineType, ResourceLayout, SRBVarTypes, _countof(SRBVarTypes), &m_ResourceCache);
 }
 
 ShaderResourceBindingGLImpl::~ShaderResourceBindingGLImpl()
 {
-
+    m_ResourceCache.Destroy(GetRawAllocator());
 }
 
-IMPLEMENT_QUERY_INTERFACE( ShaderResourceBindingGLImpl, IID_ShaderResourceBindingGL, TBase )
+IMPLEMENT_QUERY_INTERFACE(ShaderResourceBindingGLImpl, IID_ShaderResourceBindingGL, TBase)
 
-void ShaderResourceBindingGLImpl::BindResources(Uint32 ShaderFlags, IResourceMapping *pResMapping, Uint32 Flags)
+void ShaderResourceBindingGLImpl::BindResources(Uint32 ShaderFlags, IResourceMapping* pResMapping, Uint32 Flags)
 {
-    if(ShaderFlags & SHADER_TYPE_VERTEX)
-        m_DynamicProgResources[VSInd].BindResources(pResMapping, Flags);
-    if(ShaderFlags & SHADER_TYPE_PIXEL)                        
-        m_DynamicProgResources[PSInd].BindResources(pResMapping, Flags);
-    if(ShaderFlags & SHADER_TYPE_GEOMETRY)                     
-        m_DynamicProgResources[GSInd].BindResources(pResMapping, Flags);
-    if(ShaderFlags & SHADER_TYPE_HULL)                         
-        m_DynamicProgResources[HSInd].BindResources(pResMapping, Flags);
-    if(ShaderFlags & SHADER_TYPE_DOMAIN)                       
-        m_DynamicProgResources[DSInd].BindResources(pResMapping, Flags);
-    if(ShaderFlags & SHADER_TYPE_COMPUTE)                      
-        m_DynamicProgResources[CSInd].BindResources(pResMapping, Flags);
+    m_ResourceLayout.BindResources(static_cast<SHADER_TYPE>(ShaderFlags), pResMapping, Flags, m_ResourceCache);
 }
 
-IShaderVariable *ShaderResourceBindingGLImpl::GetVariable(SHADER_TYPE ShaderType, const char *Name)
+IShaderResourceVariable* ShaderResourceBindingGLImpl::GetVariableByName(SHADER_TYPE ShaderType, const char* Name)
 {
-    auto ShaderInd = GetShaderTypeIndex(ShaderType);
-    IShaderVariable *pVar = m_DynamicProgResources[ShaderInd].GetShaderVariable(Name);
-    if( !pVar )
+    if (!IsConsistentShaderType(ShaderType, m_pPSO->GetDesc().PipelineType))
     {
-        LOG_ERROR_MESSAGE( "Shader variable \"", Name, "\" is not found in the shader resource mapping. Attempts to set the variable will be silently ignored." );
-        pVar = &m_DummyShaderVar;
+        LOG_WARNING_MESSAGE("Unable to find mutable/dynamic variable '", Name, "' in shader stage ", GetShaderTypeLiteralName(ShaderType),
+                            " as the stage is invalid for ", GetPipelineTypeString(m_pPSO->GetDesc().PipelineType), " pipeline '", m_pPSO->GetDesc().Name, "'");
+        return nullptr;
     }
-    return pVar;
+
+    return m_ResourceLayout.GetShaderVariable(ShaderType, Name);
 }
 
 Uint32 ShaderResourceBindingGLImpl::GetVariableCount(SHADER_TYPE ShaderType) const
 {
-    UNSUPPORTED("Not yet implemented");
-    return 0;
+    if (!IsConsistentShaderType(ShaderType, m_pPSO->GetDesc().PipelineType))
+    {
+        LOG_WARNING_MESSAGE("Unable to get the number of mutable/dynamic variables in shader stage ", GetShaderTypeLiteralName(ShaderType),
+                            " as the stage is invalid for ", GetPipelineTypeString(m_pPSO->GetDesc().PipelineType), " pipeline '", m_pPSO->GetDesc().Name, "'");
+        return 0;
+    }
+
+    return m_ResourceLayout.GetNumVariables(ShaderType);
 }
 
-IShaderVariable* ShaderResourceBindingGLImpl::GetVariable(SHADER_TYPE ShaderType, Uint32 Index)
+IShaderResourceVariable* ShaderResourceBindingGLImpl::GetVariableByIndex(SHADER_TYPE ShaderType, Uint32 Index)
 {
-    UNSUPPORTED("Not yet implemented");
-    return 0;
+    if (!IsConsistentShaderType(ShaderType, m_pPSO->GetDesc().PipelineType))
+    {
+        LOG_WARNING_MESSAGE("Unable to get mutable/dynamic variable at index ", Index, " in shader stage ", GetShaderTypeLiteralName(ShaderType),
+                            " as the stage is invalid for ", GetPipelineTypeString(m_pPSO->GetDesc().PipelineType), " pipeline '", m_pPSO->GetDesc().Name, "'");
+        return nullptr;
+    }
+
+    return m_ResourceLayout.GetShaderVariable(ShaderType, Index);
 }
 
-static GLProgramResources NullProgramResources;
-GLProgramResources &ShaderResourceBindingGLImpl::GetProgramResources(SHADER_TYPE ShaderType, PipelineStateGLImpl *pdbgPSO)
+const GLProgramResourceCache& ShaderResourceBindingGLImpl::GetResourceCache(PipelineStateGLImpl* pdbgPSO)
 {
-#ifdef _DEBUG
-    auto pPSO = m_wpPSO.Lock();
-    if (pdbgPSO->IsIncompatibleWith(pPSO))
+#ifdef DILIGENT_DEBUG
+    if (pdbgPSO->IsIncompatibleWith(GetPipelineState()))
     {
         LOG_ERROR("Shader resource binding is incompatible with the currently bound pipeline state.");
     }
 #endif
-    auto ShaderInd = GetShaderTypeIndex(ShaderType);
-    return m_DynamicProgResources[ShaderInd];
+    return m_ResourceCache;
 }
 
+void ShaderResourceBindingGLImpl::InitializeStaticResources(const IPipelineState* pPipelineState)
+{
+    if (m_bIsStaticResourcesBound)
+    {
+        LOG_WARNING_MESSAGE("Static resources have already been initialized in this shader resource binding object. The operation will be ignored.");
+        return;
+    }
+
+    if (pPipelineState == nullptr)
+    {
+        pPipelineState = GetPipelineState();
+    }
+    else
+    {
+        DEV_CHECK_ERR(pPipelineState->IsCompatibleWith(GetPipelineState()), "The pipeline state is not compatible with this SRB");
+    }
+
+    const auto* pPSOGL          = ValidatedCast<const PipelineStateGLImpl>(pPipelineState);
+    const auto& StaticResLayout = pPSOGL->GetStaticResourceLayout();
+
+#ifdef DILIGENT_DEVELOPMENT
+    if (!StaticResLayout.dvpVerifyBindings(pPSOGL->GetStaticResourceCache()))
+    {
+        LOG_ERROR_MESSAGE("Static resources in SRB of PSO '", pPSOGL->GetDesc().Name,
+                          "' will not be successfully initialized because not all static resource bindings in shader '", pPSOGL->GetDesc().Name,
+                          "' are valid. Please make sure you bind all static resources to PSO before calling InitializeStaticResources() "
+                          "directly or indirectly by passing InitStaticResources=true to CreateShaderResourceBinding() method.");
+    }
+#endif
+
+    StaticResLayout.CopyResources(m_ResourceCache);
+    m_bIsStaticResourcesBound = true;
 }
+
+} // namespace Diligent

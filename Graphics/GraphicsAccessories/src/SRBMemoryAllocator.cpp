@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -21,7 +25,7 @@
  *  of the possibility of such damages.
  */
 
-#include "SRBMemoryAllocator.h"
+#include "SRBMemoryAllocator.hpp"
 
 namespace Diligent
 {
@@ -31,7 +35,7 @@ SRBMemoryAllocator::~SRBMemoryAllocator()
     if (m_DataAllocators != nullptr)
     {
         auto TotalAllocatorCount = m_ShaderVariableDataAllocatorCount + m_ResourceCacheDataAllocatorCount;
-        for (Uint32 s=0; s < TotalAllocatorCount; ++s)
+        for (Uint32 s = 0; s < TotalAllocatorCount; ++s)
         {
             m_DataAllocators[s].~FixedBlockMemoryAllocator();
         }
@@ -39,8 +43,8 @@ SRBMemoryAllocator::~SRBMemoryAllocator()
     }
 }
 
-void SRBMemoryAllocator::Initialize(Uint32              SRBAllocationGranularity, 
-                                    Uint32              ShaderVariableDataAllocatorCount, 
+void SRBMemoryAllocator::Initialize(Uint32              SRBAllocationGranularity,
+                                    Uint32              ShaderVariableDataAllocatorCount,
                                     const size_t* const ShaderVariableDataSizes,
                                     Uint32              ResourceCacheDataAllocatorCount,
                                     const size_t* const ResourceCacheDataSizes)
@@ -50,23 +54,22 @@ void SRBMemoryAllocator::Initialize(Uint32              SRBAllocationGranularity
 
     m_ShaderVariableDataAllocatorCount = ShaderVariableDataAllocatorCount;
     m_ResourceCacheDataAllocatorCount  = ResourceCacheDataAllocatorCount;
-    auto TotalAllocatorCount = m_ShaderVariableDataAllocatorCount + m_ResourceCacheDataAllocatorCount;
+    auto TotalAllocatorCount           = m_ShaderVariableDataAllocatorCount + m_ResourceCacheDataAllocatorCount;
 
-    if(TotalAllocatorCount == 0)
+    if (TotalAllocatorCount == 0)
         return;
 
     auto* pAllocatorsRawMem = m_RawMemAllocator.Allocate(
         sizeof(FixedBlockMemoryAllocator) * TotalAllocatorCount,
         "Raw memory for SRBMemoryAllocator::m_ShaderVariableDataAllocators",
-        __FILE__, __LINE__
-        );
+        __FILE__, __LINE__);
     m_DataAllocators = reinterpret_cast<FixedBlockMemoryAllocator*>(pAllocatorsRawMem);
 
     for (Uint32 s = 0; s < TotalAllocatorCount; ++s)
     {
         auto size = s < ShaderVariableDataAllocatorCount ? ShaderVariableDataSizes[s] : ResourceCacheDataSizes[s - ShaderVariableDataAllocatorCount];
-        new(m_DataAllocators + s)FixedBlockMemoryAllocator(GetRawAllocator(), size, SRBAllocationGranularity);
+        new (m_DataAllocators + s) FixedBlockMemoryAllocator(GetRawAllocator(), size, SRBAllocationGranularity);
     }
 }
 
-}
+} // namespace Diligent

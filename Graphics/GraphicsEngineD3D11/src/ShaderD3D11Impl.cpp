@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -23,101 +27,142 @@
 
 #include "pch.h"
 
-#include "ShaderD3D11Impl.h"
-#include "RenderDeviceD3D11Impl.h"
+#include "ShaderD3D11Impl.hpp"
+#include "RenderDeviceD3D11Impl.hpp"
 #include "ResourceMapping.h"
 
 namespace Diligent
 {
 
-ShaderD3D11Impl::ShaderD3D11Impl(IReferenceCounters*          pRefCounters,
-                                 RenderDeviceD3D11Impl*       pRenderDeviceD3D11,
-                                 const ShaderCreationAttribs& CreationAttribs) : 
-    TShaderBase(pRefCounters, pRenderDeviceD3D11, CreationAttribs.Desc),
-    ShaderD3DBase(CreationAttribs),
-    m_StaticResLayout(*this, GetRawAllocator()),
-    m_ShaderTypeIndex(Diligent::GetShaderTypeIndex(CreationAttribs.Desc.ShaderType)),
-    m_DummyShaderVar(*this)
+static const ShaderVersion HLSLValidateShaderVersion(const ShaderVersion& Version, const ShaderVersion& MaxVersion)
 {
-    auto *pDeviceD3D11 = pRenderDeviceD3D11->GetD3D11Device();
-    switch(CreationAttribs.Desc.ShaderType)
+    ShaderVersion ModelVer;
+    if (Version.Major > MaxVersion.Major || (Version.Major == MaxVersion.Major && Version.Minor > MaxVersion.Minor))
+    {
+        ModelVer = MaxVersion;
+        LOG_ERROR_MESSAGE("Shader model ", Uint32{Version.Major}, "_", Uint32{Version.Minor},
+                          " is not supported by this device. Attempting to use the maximum supported model ",
+                          Uint32{MaxVersion.Major}, "_", Uint32{MaxVersion.Minor}, '.');
+    }
+    else
+    {
+        ModelVer = Version;
+    }
+    return ModelVer;
+}
+
+static const ShaderVersion GetD3D11ShaderModel(ID3D11Device* pd3d11Device, const ShaderVersion& HLSLVersion)
+{
+    auto d3dDeviceFeatureLevel = pd3d11Device->GetFeatureLevel();
+    switch (d3dDeviceFeatureLevel)
+    {
+        // Direct3D11 only supports shader model 5.0 even if the device feature level is
+        // above 11.0 (for example, 11.1 or 12.0).
+        // https://docs.microsoft.com/en-us/windows/win32/direct3d11/overviews-direct3d-11-devices-downlevel-intro#overview-for-each-feature-level
+#if defined(_WIN32_WINNT_WIN10) && (_WIN32_WINNT >= _WIN32_WINNT_WIN10)
+        case D3D_FEATURE_LEVEL_12_1:
+        case D3D_FEATURE_LEVEL_12_0:
+#endif
+        case D3D_FEATURE_LEVEL_11_1:
+        case D3D_FEATURE_LEVEL_11_0:
+            return (HLSLVersion.Major == 0 && HLSLVersion.Minor == 0) ?
+                ShaderVersion{5, 0} :
+                HLSLValidateShaderVersion(HLSLVersion, {5, 0});
+
+        case D3D_FEATURE_LEVEL_10_1:
+            return (HLSLVersion.Major == 0 && HLSLVersion.Minor == 0) ?
+                ShaderVersion{4, 1} :
+                HLSLValidateShaderVersion(HLSLVersion, {4, 1});
+
+        case D3D_FEATURE_LEVEL_10_0:
+            return (HLSLVersion.Major == 0 && HLSLVersion.Minor == 0) ?
+                ShaderVersion{4, 0} :
+                HLSLValidateShaderVersion(HLSLVersion, {4, 0});
+
+        default:
+            UNEXPECTED("Unexpected D3D feature level ", static_cast<Uint32>(d3dDeviceFeatureLevel));
+            return ShaderVersion{4, 0};
+    }
+}
+
+ShaderD3D11Impl::ShaderD3D11Impl(IReferenceCounters*     pRefCounters,
+                                 RenderDeviceD3D11Impl*  pRenderDeviceD3D11,
+                                 const ShaderCreateInfo& ShaderCI) :
+    // clang-format off
+    TShaderBase
+    {
+        pRefCounters,
+        pRenderDeviceD3D11,
+        ShaderCI.Desc
+    },
+    ShaderD3DBase{ShaderCI, GetD3D11ShaderModel(pRenderDeviceD3D11->GetD3D11Device(), ShaderCI.HLSLVersion), nullptr}
+// clang-format on
+{
+    auto* pDeviceD3D11 = pRenderDeviceD3D11->GetD3D11Device();
+    switch (ShaderCI.Desc.ShaderType)
     {
 
-#define CREATE_SHADER(SHADER_NAME, ShaderName)\
-        case SHADER_TYPE_##SHADER_NAME:         \
-        {                                       \
-            ID3D11##ShaderName##Shader *pShader;    \
-            HRESULT hr = pDeviceD3D11->Create##ShaderName##Shader( m_pShaderByteCode->GetBufferPointer(), m_pShaderByteCode->GetBufferSize(), NULL, &pShader ); \
-            CHECK_D3D_RESULT_THROW( hr, "Failed to create D3D11 shader" );      \
-            if( SUCCEEDED(hr) )                     \
-            {                                       \
-                pShader->QueryInterface( __uuidof(ID3D11DeviceChild), reinterpret_cast<void**>( static_cast<ID3D11DeviceChild**>(&m_pShader) ) ); \
-                pShader->Release();                 \
-            }                                       \
-            break;                                  \
-        }
-
-        CREATE_SHADER(VERTEX,   Vertex)
-        CREATE_SHADER(PIXEL,    Pixel)
-        CREATE_SHADER(GEOMETRY, Geometry)
-        CREATE_SHADER(DOMAIN,   Domain)
-        CREATE_SHADER(HULL,     Hull)
-        CREATE_SHADER(COMPUTE,  Compute)
-
-        default: UNEXPECTED( "Unknown shader type" );
+#define CREATE_SHADER(SHADER_NAME, ShaderName)                                                                                                                                \
+    case SHADER_TYPE_##SHADER_NAME:                                                                                                                                           \
+    {                                                                                                                                                                         \
+        ID3D11##ShaderName##Shader* pShader;                                                                                                                                  \
+        HRESULT                     hr = pDeviceD3D11->Create##ShaderName##Shader(m_pShaderByteCode->GetBufferPointer(), m_pShaderByteCode->GetBufferSize(), NULL, &pShader); \
+        CHECK_D3D_RESULT_THROW(hr, "Failed to create D3D11 shader");                                                                                                          \
+        if (SUCCEEDED(hr))                                                                                                                                                    \
+        {                                                                                                                                                                     \
+            pShader->QueryInterface(__uuidof(ID3D11DeviceChild), reinterpret_cast<void**>(static_cast<ID3D11DeviceChild**>(&m_pShader)));                                     \
+            pShader->Release();                                                                                                                                               \
+        }                                                                                                                                                                     \
+        break;                                                                                                                                                                \
     }
-    
-    if(!m_pShader)
+
+        CREATE_SHADER(VERTEX, Vertex)
+        CREATE_SHADER(PIXEL, Pixel)
+        CREATE_SHADER(GEOMETRY, Geometry)
+        CREATE_SHADER(DOMAIN, Domain)
+        CREATE_SHADER(HULL, Hull)
+        CREATE_SHADER(COMPUTE, Compute)
+
+        default: UNEXPECTED("Unknown shader type");
+    }
+
+    if (!m_pShader)
         LOG_ERROR_AND_THROW("Failed to create the shader from the byte code");
 
+    if (*m_Desc.Name != 0)
+    {
+        auto hr = m_pShader->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<UINT>(strlen(m_Desc.Name)), m_Desc.Name);
+        DEV_CHECK_ERR(SUCCEEDED(hr), "Failed to set shader name");
+    }
+
     // Load shader resources
-    auto &Allocator = GetRawAllocator();
-    auto *pRawMem = ALLOCATE(Allocator, "Allocator for ShaderResources", sizeof(ShaderResourcesD3D11));
-    auto *pResources = new (pRawMem) ShaderResourcesD3D11(pRenderDeviceD3D11, m_pShaderByteCode, m_Desc);
+    auto& Allocator  = GetRawAllocator();
+    auto* pRawMem    = ALLOCATE(Allocator, "Allocator for ShaderResources", ShaderResourcesD3D11, 1);
+    auto* pResources = new (pRawMem) ShaderResourcesD3D11(pRenderDeviceD3D11, m_pShaderByteCode, m_Desc, ShaderCI.UseCombinedTextureSamplers ? ShaderCI.CombinedSamplerSuffix : nullptr);
     m_pShaderResources.reset(pResources, STDDeleterRawMem<ShaderResourcesD3D11>(Allocator));
 
-    // Clone only static resources that will be set directly in the shader
-    SHADER_VARIABLE_TYPE VarTypes[] = {SHADER_VARIABLE_TYPE_STATIC};
-    // The method will also initialize resource cache to have enough space to hold static variables only!
-    m_StaticResLayout.Initialize(m_pShaderResources, VarTypes, _countof(VarTypes), m_StaticResCache, GetRawAllocator(), GetRawAllocator());
-
-    // This is not required, but still...
-    m_pShaderResources->InitStaticSamplers(m_StaticResCache);
-
     // Byte code is only required for the vertex shader to create input layout
-    if( CreationAttribs.Desc.ShaderType != SHADER_TYPE_VERTEX )
+    if (ShaderCI.Desc.ShaderType != SHADER_TYPE_VERTEX)
         m_pShaderByteCode.Release();
 }
 
 ShaderD3D11Impl::~ShaderD3D11Impl()
 {
-    m_StaticResCache.Destroy(GetRawAllocator());
 }
 
-IMPLEMENT_QUERY_INTERFACE( ShaderD3D11Impl, IID_ShaderD3D11, TShaderBase )
-
-IShaderVariable* ShaderD3D11Impl::GetShaderVariable( const Char* Name )
+void ShaderD3D11Impl::QueryInterface(const INTERFACE_ID& IID, IObject** ppInterface)
 {
-    auto *pVar = m_StaticResLayout.GetShaderVariable(Name);
-    if(pVar == nullptr)
-        pVar = &m_DummyShaderVar;
-    return pVar;
+    if (ppInterface == nullptr)
+        return;
+    if (IID == IID_ShaderD3D || IID == IID_ShaderD3D11)
+    {
+        *ppInterface = this;
+        (*ppInterface)->AddRef();
+    }
+    else
+    {
+        TShaderBase::QueryInterface(IID, ppInterface);
+    }
 }
 
-Uint32 ShaderD3D11Impl::GetVariableCount() const
-{
-    return m_StaticResLayout.GetTotalResourceCount();
-}
-
-IShaderVariable* ShaderD3D11Impl::GetShaderVariable(Uint32 Index)
-{
-    return m_StaticResLayout.GetShaderVariable(Index);
-}
-
-
-void ShaderD3D11Impl::BindResources(IResourceMapping* pResourceMapping, Uint32 Flags)
-{
-    m_StaticResLayout.BindResources(pResourceMapping, Flags, m_StaticResCache);
-}
-
-}
+} // namespace Diligent

@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -22,206 +26,141 @@
  */
 
 #include <unordered_map>
+#include <vector>
+#include <memory>
+
 #include <D3Dcompiler.h>
 
-#include "D3DErrors.h"
-#include "DataBlobImpl.h"
-#include "RefCntAutoPtr.h"
 #include <atlcomcli.h>
-#include "ShaderD3DBase.h"
+#include "dxc/dxcapi.h"
+
+#include "D3DErrors.hpp"
+#include "DataBlobImpl.hpp"
+#include "RefCntAutoPtr.hpp"
+#include "ShaderD3DBase.hpp"
+#include "DXCompiler.hpp"
+#include "HLSLUtils.hpp"
 
 namespace Diligent
 {
 
-const Char* g_HLSLDefinitions = 
-{
-    #include "HLSLDefinitions_inc.fxh"
-};
-
 class D3DIncludeImpl : public ID3DInclude
 {
 public:
-    D3DIncludeImpl(IShaderSourceInputStreamFactory *pStreamFactory) : 
-        m_pStreamFactory(pStreamFactory)
+    D3DIncludeImpl(IShaderSourceInputStreamFactory* pStreamFactory) :
+        m_pStreamFactory{pStreamFactory}
     {
-
     }
 
-    STDMETHOD( Open )(THIS_ D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID *ppData, UINT *pBytes)
+    STDMETHOD(Open)
+    (THIS_ D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID* ppData, UINT* pBytes)
     {
         RefCntAutoPtr<IFileStream> pSourceStream;
-        m_pStreamFactory->CreateInputStream( pFileName, &pSourceStream );
-        if( pSourceStream == nullptr )
+        m_pStreamFactory->CreateInputStream(pFileName, &pSourceStream);
+        if (pSourceStream == nullptr)
         {
-            LOG_ERROR( "Failed to open shader include file ", pFileName, ". Check that the file exists" );
+            LOG_ERROR("Failed to open shader include file ", pFileName, ". Check that the file exists");
             return E_FAIL;
         }
 
-        RefCntAutoPtr<IDataBlob> pFileData( MakeNewRCObj<DataBlobImpl>()(0) );
-        pSourceStream->Read( pFileData );
+        RefCntAutoPtr<IDataBlob> pFileData(MakeNewRCObj<DataBlobImpl>{}(0));
+        pSourceStream->ReadBlob(pFileData);
         *ppData = pFileData->GetDataPtr();
-        *pBytes = static_cast<UINT>( pFileData->GetSize() );
+        *pBytes = static_cast<UINT>(pFileData->GetSize());
 
-        m_DataBlobs.insert( std::make_pair(*ppData, pFileData) );
+        m_DataBlobs.insert(std::make_pair(*ppData, pFileData));
 
         return S_OK;
     }
 
-    STDMETHOD( Close )(THIS_ LPCVOID pData)
+    STDMETHOD(Close)
+    (THIS_ LPCVOID pData)
     {
-        m_DataBlobs.erase( pData );
+        m_DataBlobs.erase(pData);
         return S_OK;
     }
 
 private:
-    IShaderSourceInputStreamFactory *m_pStreamFactory;
-    std::unordered_map< LPCVOID, RefCntAutoPtr<IDataBlob> > m_DataBlobs;
+    IShaderSourceInputStreamFactory*                      m_pStreamFactory;
+    std::unordered_map<LPCVOID, RefCntAutoPtr<IDataBlob>> m_DataBlobs;
 };
 
-HRESULT CompileShader( const char* Source,
-                       LPCSTR strFunctionName,
-                       const D3D_SHADER_MACRO* pDefines, 
-                       IShaderSourceInputStreamFactory *pIncludeStreamFactory,
-                       LPCSTR profile, 
-                       ID3DBlob **ppBlobOut,
-                       ID3DBlob **ppCompilerOutput)
+static HRESULT CompileShader(const char*             Source,
+                             size_t                  SourceLength,
+                             const ShaderCreateInfo& ShaderCI,
+                             LPCSTR                  profile,
+                             ID3DBlob**              ppBlobOut,
+                             ID3DBlob**              ppCompilerOutput)
 {
     DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
-#if defined( DEBUG ) || defined( _DEBUG )
+#if defined(DILIGENT_DEBUG)
     // Set the D3D10_SHADER_DEBUG flag to embed debug information in the shaders.
-    // Setting this flag improves the shader debugging experience, but still allows 
-    // the shaders to be optimized and to run exactly the way they will run in 
+    // Setting this flag improves the shader debugging experience, but still allows
+    // the shaders to be optimized and to run exactly the way they will run in
     // the release configuration of this program.
     dwShaderFlags |= D3DCOMPILE_DEBUG;
 #else
-    // Warning: do not use this flag as it causes shader compiler to fail the compilation and 
+    // Warning: do not use this flag as it causes shader compiler to fail the compilation and
     // report strange errors:
     // dwShaderFlags |= D3D10_SHADER_OPTIMIZATION_LEVEL3;
 #endif
-	HRESULT hr;
-//	do
-//	{
-        auto SourceLen = strlen(Source);
-         
-        D3DIncludeImpl IncludeImpl(pIncludeStreamFactory);
-        hr = D3DCompile( Source, SourceLen, NULL, pDefines, &IncludeImpl, strFunctionName, profile, dwShaderFlags, 0, ppBlobOut, ppCompilerOutput);
-       
-//		if( FAILED(hr) || errors )
-//		{
-//			if( FAILED(hr) 
-//#if PLATFORM_WIN32
-//                && IDRETRY != MessageBoxW( NULL, L"Failed to compile shader", L"FX Error", MB_ICONERROR | (Source == nullptr ? MB_ABORTRETRYIGNORE : 0) ) 
-//#endif
-//                )
-//			{
-//				break;
-//			}
-//		}
-//	} while( FAILED(hr) );
-	return hr;
+
+    D3DIncludeImpl IncludeImpl{ShaderCI.pShaderSourceStreamFactory};
+    return D3DCompile(Source, SourceLength, NULL, nullptr, &IncludeImpl, ShaderCI.EntryPoint, profile, dwShaderFlags, 0, ppBlobOut, ppCompilerOutput);
 }
 
-const char* DXShaderProfileToString(SHADER_PROFILE DXProfile)
+ShaderD3DBase::ShaderD3DBase(const ShaderCreateInfo& ShaderCI, const ShaderVersion ShaderModel, IDXCompiler* DxCompiler)
 {
-    switch(DXProfile)
+    if (ShaderCI.Source || ShaderCI.FilePath)
     {
-        case SHADER_PROFILE_DX_4_0: return "4_0";
-        case SHADER_PROFILE_DX_5_0: return "5_0";
-        case SHADER_PROFILE_DX_5_1: return "5_1";
-        //default: UNEXPECTED("Unknown DirectX shader profile" ); return "";
-        default: return "5_0";
-    }
-}
+        DEV_CHECK_ERR(ShaderCI.ByteCode == nullptr, "'ByteCode' must be null when shader is created from the source code or a file");
+        DEV_CHECK_ERR(ShaderCI.ByteCodeSize == 0, "'ByteCodeSize' must be 0 when shader is created from the source code or a file");
+        DEV_CHECK_ERR(ShaderCI.EntryPoint != nullptr, "Entry point must not be null");
 
-ShaderD3DBase::ShaderD3DBase(const ShaderCreationAttribs &CreationAttribs)
-{
-    if (CreationAttribs.Source || CreationAttribs.FilePath)
-    {
-        VERIFY(CreationAttribs.ByteCode == nullptr, "'ByteCode' must be null when shader is created from the source code or a file");
-        VERIFY(CreationAttribs.ByteCodeSize == 0, "'ByteCodeSize' must be 0 when shader is created from the source code or a file");
+        bool UseDXC = false;
 
-        std::string strShaderProfile;
-        switch(CreationAttribs.Desc.ShaderType)
+        // validate compiler type
+        switch (ShaderCI.ShaderCompiler)
         {
-            case SHADER_TYPE_VERTEX:  strShaderProfile="vs"; break;
-            case SHADER_TYPE_PIXEL:   strShaderProfile="ps"; break;
-            case SHADER_TYPE_GEOMETRY:strShaderProfile="gs"; break;
-            case SHADER_TYPE_HULL:    strShaderProfile="hs"; break;
-            case SHADER_TYPE_DOMAIN:  strShaderProfile="ds"; break;
-            case SHADER_TYPE_COMPUTE: strShaderProfile="cs"; break;
+            case SHADER_COMPILER_DEFAULT:
+                UseDXC = false;
+                break;
 
-            default: UNEXPECTED( "Unknown shader type" );
+            case SHADER_COMPILER_DXC:
+                UseDXC = DxCompiler != nullptr && DxCompiler->IsLoaded();
+                if (!UseDXC)
+                    LOG_WARNING_MESSAGE("DXC compiler is not available. Using default shader compiler");
+                break;
+
+            case SHADER_COMPILER_FXC:
+                UseDXC = false;
+                break;
+
+            default: UNEXPECTED("Unsupported shader compiler");
         }
-        strShaderProfile += "_";
-        auto *pProfileSuffix = DXShaderProfileToString(CreationAttribs.Desc.TargetProfile);
-        strShaderProfile += pProfileSuffix;
 
-        String ShaderSource(g_HLSLDefinitions);
-        if (CreationAttribs.Source)
+        if (UseDXC)
         {
-            VERIFY(CreationAttribs.FilePath == nullptr, "'FilePath' is expected to be null when shader source code is provided");
-            ShaderSource.append(CreationAttribs.Source);
+            VERIFY_EXPR(__uuidof(ID3DBlob) == __uuidof(IDxcBlob));
+            DxCompiler->Compile(ShaderCI, ShaderModel, nullptr, reinterpret_cast<IDxcBlob**>(&m_pShaderByteCode), nullptr, ShaderCI.ppCompilerOutput);
         }
         else
         {
-            VERIFY(CreationAttribs.pShaderSourceStreamFactory, "Input stream factory is null");
-            RefCntAutoPtr<IFileStream> pSourceStream;
-            CreationAttribs.pShaderSourceStreamFactory->CreateInputStream(CreationAttribs.FilePath, &pSourceStream);
-            RefCntAutoPtr<IDataBlob> pFileData(MakeNewRCObj<DataBlobImpl>()(0));
-            if (pSourceStream == nullptr)
-                LOG_ERROR_AND_THROW("Failed to open shader source file");
-            pSourceStream->Read(pFileData);
-            // Null terminator is not read from the stream!
-            auto* FileDataPtr = reinterpret_cast<Char*>(pFileData->GetDataPtr());
-            auto Size = pFileData->GetSize();
-            ShaderSource.append(FileDataPtr, FileDataPtr + Size / sizeof(*FileDataPtr));
-        }
+            std::string strShaderProfile = GetHLSLProfileString(ShaderCI.Desc.ShaderType, ShaderModel);
 
-        const D3D_SHADER_MACRO *pDefines = nullptr;
-        std::vector<D3D_SHADER_MACRO> D3DMacros;
-        if (CreationAttribs.Macros)
-        {
-            for (auto* pCurrMacro = CreationAttribs.Macros; pCurrMacro->Name && pCurrMacro->Definition; ++pCurrMacro)
-            {
-                D3DMacros.push_back({ pCurrMacro->Name, pCurrMacro->Definition });
-            }
-            D3DMacros.push_back({ nullptr, nullptr });
-            pDefines = D3DMacros.data();
-        }
+            String ShaderSource = BuildHLSLSourceString(ShaderCI);
 
-        VERIFY(CreationAttribs.EntryPoint != nullptr, "Entry point must not be null");
-        CComPtr<ID3DBlob> errors;
-        auto hr = CompileShader(ShaderSource.c_str(), CreationAttribs.EntryPoint, pDefines, CreationAttribs.pShaderSourceStreamFactory, strShaderProfile.c_str(), &m_pShaderByteCode, &errors);
+            CComPtr<ID3DBlob> CompilerOutput;
 
-        const char *CompilerMsg = errors ? reinterpret_cast<const char*>(errors->GetBufferPointer()) : nullptr;
-        if(CompilerMsg != nullptr && CreationAttribs.ppCompilerOutput != nullptr)
-        {
-            auto ErrorMsgLen = strlen(CompilerMsg);
-            auto *pOutputDataBlob = MakeNewRCObj<DataBlobImpl>()(ErrorMsgLen + 1 + ShaderSource.length() + 1);
-            char* DataPtr = reinterpret_cast<char*>(pOutputDataBlob->GetDataPtr());
-            memcpy(DataPtr, CompilerMsg, ErrorMsgLen+1);
-            memcpy(DataPtr + ErrorMsgLen + 1, ShaderSource.data(), ShaderSource.length() + 1);
-            pOutputDataBlob->QueryInterface(IID_DataBlob, reinterpret_cast<IObject**>(CreationAttribs.ppCompilerOutput));
-        }
-
-        if(FAILED(hr))
-        {
-            ComErrorDesc ErrDesc(hr);
-            if(CreationAttribs.ppCompilerOutput != nullptr)
-            {
-                LOG_ERROR_AND_THROW("Failed to compile D3D shader \"",  (CreationAttribs.Desc.Name != nullptr ? CreationAttribs.Desc.Name : ""), "\" (", ErrDesc.Get(), ").");
-            }
-            else
-            {
-                LOG_ERROR_AND_THROW("Failed to compile D3D shader \"", (CreationAttribs.Desc.Name != nullptr ? CreationAttribs.Desc.Name : ""), "\" (", ErrDesc.Get(), "):\n", (CompilerMsg != nullptr ? CompilerMsg : "<no compiler log available>") );
-            }
+            auto hr = CompileShader(ShaderSource.c_str(), ShaderSource.length(), ShaderCI, strShaderProfile.c_str(), &m_pShaderByteCode, &CompilerOutput);
+            HandleHLSLCompilerResult(SUCCEEDED(hr), CompilerOutput.p, ShaderSource, ShaderCI.Desc.Name, ShaderCI.ppCompilerOutput);
         }
     }
-    else if (CreationAttribs.ByteCode)
+    else if (ShaderCI.ByteCode)
     {
-        VERIFY(CreationAttribs.ByteCodeSize != 0, "ByteCode size must be greater than 0");
-        CHECK_D3D_RESULT_THROW(D3DCreateBlob(CreationAttribs.ByteCodeSize, &m_pShaderByteCode), "Failed to create D3D blob");
-        memcpy(m_pShaderByteCode->GetBufferPointer(), CreationAttribs.ByteCode, CreationAttribs.ByteCodeSize);
+        DEV_CHECK_ERR(ShaderCI.ByteCodeSize != 0, "ByteCode size must be greater than 0");
+        CHECK_D3D_RESULT_THROW(D3DCreateBlob(ShaderCI.ByteCodeSize, &m_pShaderByteCode), "Failed to create D3D blob");
+        memcpy(m_pShaderByteCode->GetBufferPointer(), ShaderCI.ByteCode, ShaderCI.ByteCodeSize);
     }
     else
     {
@@ -229,4 +168,4 @@ ShaderD3DBase::ShaderD3DBase(const ShaderCreationAttribs &CreationAttribs)
     }
 }
 
-}
+} // namespace Diligent

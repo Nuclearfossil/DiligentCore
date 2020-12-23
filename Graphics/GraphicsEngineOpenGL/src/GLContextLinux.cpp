@@ -23,160 +23,94 @@
 
 #include "pch.h"
 
-#include "GLContextLinux.h"
-#include "DeviceCaps.h"
-#include "GLTypeConversions.h"
-#include "EngineGLAttribs.h"
+#include "GLContextLinux.hpp"
+#include "GraphicsTypes.h"
+#include "GLTypeConversions.hpp"
 
 namespace Diligent
 {
-    void openglCallbackFunction( GLenum source,
-        GLenum type,
-        GLuint id,
-        GLenum severity,
-        GLsizei length,
-        const GLchar* message,
-        const void* userParam )
+
+GLContext::GLContext(const EngineGLCreateInfo& InitAttribs, DeviceCaps& deviceCaps, const struct SwapChainDesc* /*pSCDesc*/) :
+    m_Context(0),
+    m_WindowId(InitAttribs.Window.WindowId),
+    m_pDisplay(InitAttribs.Window.pDisplay)
+{
+    auto CurrentCtx = glXGetCurrentContext();
+    if (CurrentCtx == 0)
     {
-        std::stringstream MessageSS;
-
-        MessageSS << "OpenGL debug message (";
-        switch( type ) 
-        {
-            case GL_DEBUG_TYPE_ERROR:
-                MessageSS << "ERROR";
-                break;
-            case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
-                MessageSS << "DEPRECATED_BEHAVIOR";
-                break;
-            case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
-                MessageSS << "UNDEFINED_BEHAVIOR";
-                break;
-            case GL_DEBUG_TYPE_PORTABILITY:
-                MessageSS << "PORTABILITY";
-                break;
-            case GL_DEBUG_TYPE_PERFORMANCE:
-                MessageSS << "PERFORMANCE";
-                break;
-            case GL_DEBUG_TYPE_OTHER:
-                MessageSS << "OTHER";
-                break;
-        }
-
-        switch( severity )
-        {
-            case GL_DEBUG_SEVERITY_LOW:
-                MessageSS << ", low severity";
-                break;
-            case GL_DEBUG_SEVERITY_MEDIUM:
-                MessageSS << ", medium severity";
-                break;
-            case GL_DEBUG_SEVERITY_HIGH:
-                MessageSS << ", HIGH severity";
-                break;
-            case GL_DEBUG_SEVERITY_NOTIFICATION:
-                MessageSS << ", notification";
-                break;
-        }
-
-        MessageSS << ")" << std::endl << message << std::endl;
-
-        LOG_INFO_MESSAGE( MessageSS.str().c_str() );
+        LOG_ERROR_AND_THROW("No current GL context found!");
     }
 
-    GLContext::GLContext( const EngineGLAttribs &InitAttribs, DeviceCaps &DeviceCaps ) :
-		m_Context(0),
-		m_pNativeWindow(InitAttribs.pNativeWndHandle),
-        m_pDisplay(InitAttribs.pDisplay)
+    // Initialize GLEW
+    GLenum err = glewInit();
+    if (GLEW_OK != err)
+        LOG_ERROR_AND_THROW("Failed to initialize GLEW");
+
+    //Checking GL version
+    const GLubyte* GLVersionString = glGetString(GL_VERSION);
+    const GLubyte* GLRenderer      = glGetString(GL_RENDERER);
+
+    Int32 MajorVersion = 0, MinorVersion = 0;
+    //Or better yet, use the GL3 way to get the version number
+    glGetIntegerv(GL_MAJOR_VERSION, &MajorVersion);
+    glGetIntegerv(GL_MINOR_VERSION, &MinorVersion);
+    LOG_INFO_MESSAGE(InitAttribs.Window.WindowId != 0 ? "Initialized OpenGL " : "Attached to OpenGL ", MajorVersion, '.', MinorVersion, " context (", GLVersionString, ", ", GLRenderer, ')');
+
+    // Under the standard filtering rules for cubemaps, filtering does not work across faces of the cubemap.
+    // This results in a seam across the faces of a cubemap. This was a hardware limitation in the past, but
+    // modern hardware is capable of interpolating across a cube face boundary.
+    // GL_TEXTURE_CUBE_MAP_SEAMLESS is not defined in OpenGLES
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+    if (glGetError() != GL_NO_ERROR)
+        LOG_ERROR_MESSAGE("Failed to enable seamless cubemap filtering");
+
+    // When GL_FRAMEBUFFER_SRGB is enabled, and if the destination image is in the sRGB colorspace
+    // then OpenGL will assume the shader's output is in the linear RGB colorspace. It will therefore
+    // convert the output from linear RGB to sRGB.
+    // Any writes to images that are not in the sRGB format should not be affected.
+    // Thus this setting should be just set once and left that way
+    glEnable(GL_FRAMEBUFFER_SRGB);
+    if (glGetError() != GL_NO_ERROR)
+        LOG_ERROR_MESSAGE("Failed to enable SRGB framebuffers");
+
+    deviceCaps.DevType      = RENDER_DEVICE_TYPE_GL;
+    deviceCaps.MajorVersion = MajorVersion;
+    deviceCaps.MinorVersion = MinorVersion;
+}
+
+GLContext::~GLContext()
+{
+}
+
+void GLContext::SwapBuffers(int SwapInterval)
+{
+    if (m_WindowId != 0 && m_pDisplay != nullptr)
     {
-        auto CurrentCtx = glXGetCurrentContext();
-        if (CurrentCtx == 0)
+        auto wnd     = static_cast<Window>(m_WindowId);
+        auto display = reinterpret_cast<Display*>(m_pDisplay);
+#if GLX_EXT_swap_control
+        if (glXSwapIntervalEXT != nullptr)
         {
-            LOG_ERROR_AND_THROW("No current GL context found!");
+            glXSwapIntervalEXT(display, wnd, SwapInterval);
         }
-        
-        // Initialize GLEW
-        GLenum err = glewInit();
-        if( GLEW_OK != err )
-            LOG_ERROR_AND_THROW( "Failed to initialize GLEW" );
-        
-		if(InitAttribs.pNativeWndHandle != nullptr && InitAttribs.pDisplay != nullptr)
-		{
-            //glXSwapIntervalEXT(0);
-
-            if( glDebugMessageCallback )
-            {
-                glEnable( GL_DEBUG_OUTPUT_SYNCHRONOUS );
-                glDebugMessageCallback( openglCallbackFunction, nullptr );
-                GLuint unusedIds = 0;
-                glDebugMessageControl( GL_DONT_CARE,
-                    GL_DONT_CARE,
-                    GL_DONT_CARE,
-                    0,
-                    &unusedIds,
-                    true );
-            }
-		}
-
-        //Checking GL version
-        const GLubyte *GLVersionString = glGetString( GL_VERSION );
-        const GLubyte *GLRenderer = glGetString(GL_RENDERER);
-
-        Int32 MajorVersion = 0, MinorVersion = 0;
-        //Or better yet, use the GL3 way to get the version number
-        glGetIntegerv( GL_MAJOR_VERSION, &MajorVersion );
-        glGetIntegerv( GL_MINOR_VERSION, &MinorVersion );
-        LOG_INFO_MESSAGE(InitAttribs.pNativeWndHandle != nullptr ? "Initialized OpenGL " : "Attached to OpenGL ", MajorVersion, '.', MinorVersion, " context (", GLVersionString, ", ", GLRenderer, ')');
-
-        // Under the standard filtering rules for cubemaps, filtering does not work across faces of the cubemap. 
-        // This results in a seam across the faces of a cubemap. This was a hardware limitation in the past, but 
-        // modern hardware is capable of interpolating across a cube face boundary.
-        // GL_TEXTURE_CUBE_MAP_SEAMLESS is not defined in OpenGLES
-        glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-        if( glGetError() != GL_NO_ERROR )
-            LOG_ERROR_MESSAGE("Failed to enable seamless cubemap filtering");
-
-        // When GL_FRAMEBUFFER_SRGB is enabled, and if the destination image is in the sRGB colorspace
-        // then OpenGL will assume the shader's output is in the linear RGB colorspace. It will therefore 
-        // convert the output from linear RGB to sRGB.
-        // Any writes to images that are not in the sRGB format should not be affected.
-        // Thus this setting should be just set once and left that way
-        glEnable(GL_FRAMEBUFFER_SRGB);
-        if( glGetError() != GL_NO_ERROR )
-            LOG_ERROR_MESSAGE("Failed to enable SRGB framebuffers");
-
-        DeviceCaps.DevType = DeviceType::OpenGL;
-        DeviceCaps.MajorVersion = MajorVersion;
-        DeviceCaps.MinorVersion = MinorVersion;
-        bool IsGL43OrAbove = MajorVersion >= 5 || MajorVersion == 4 && MinorVersion >= 3;
-        auto &TexCaps = DeviceCaps.TexCaps;
-        TexCaps.bTexture2DMSSupported      = IsGL43OrAbove;
-        TexCaps.bTexture2DMSArraySupported = IsGL43OrAbove;
-        TexCaps.bTextureViewSupported      = IsGL43OrAbove;
-        TexCaps.bCubemapArraysSupported    = IsGL43OrAbove;
-        DeviceCaps.bMultithreadedResourceCreationSupported = False;
-    }
-
-    GLContext::~GLContext()
-    {
-    }
-
-    void GLContext::SwapBuffers()
-    {
-        if(m_pNativeWindow != nullptr && m_pDisplay != nullptr)
+#    if GLX_MESA_swap_control
+        else if (glXSwapIntervalMESA != nullptr)
         {
-			auto wnd = static_cast<Window>(reinterpret_cast<size_t>(m_pNativeWindow));
-            auto display = reinterpret_cast<Display*>(m_pDisplay);
-            glXSwapBuffers(display, wnd);          
+            glXSwapIntervalMESA(SwapInterval);
         }
-        else
-        {
-            LOG_ERROR("Swap buffer failed because window and/or display handle is not initialized");
-        }
+#    endif
+#endif
+        glXSwapBuffers(display, wnd);
     }
-
-    GLContext::NativeGLContextType GLContext::GetCurrentNativeGLContext()
+    else
     {
-        return glXGetCurrentContext();
+        LOG_ERROR("Swap buffer failed because window and/or display handle is not initialized");
     }
 }
+
+GLContext::NativeGLContextType GLContext::GetCurrentNativeGLContext()
+{
+    return glXGetCurrentContext();
+}
+
+} // namespace Diligent

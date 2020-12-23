@@ -1,12 +1,13 @@
 cmake_minimum_required (VERSION 3.6)
 
-project(AndroidPlatform CXX)
+project(Diligent-AndroidPlatform CXX)
 
-set(INCLUDE 
-    include/AndroidDebug.h
-    include/AndroidFileSystem.h
-    include/AndroidPlatformDefinitions.h
-    include/AndroidPlatformMisc.h
+set(INTERFACE 
+    interface/AndroidDebug.hpp
+    interface/AndroidFileSystem.hpp
+    interface/AndroidPlatformDefinitions.h
+    interface/AndroidPlatformMisc.hpp
+    interface/AndroidNativeWindow.h
 )
 
 set(SOURCE 
@@ -14,28 +15,32 @@ set(SOURCE
     src/AndroidFileSystem.cpp
 )
 
-add_library(AndroidPlatform ${SOURCE} ${INCLUDE} ${PLATFORM_INTERFACE_HEADERS})
-set_common_target_properties(AndroidPlatform)
+add_library(Diligent-AndroidPlatform ${SOURCE} ${INTERFACE} ${PLATFORM_INTERFACE_HEADERS})
+set_common_target_properties(Diligent-AndroidPlatform)
 
-target_include_directories(AndroidPlatform 
+target_include_directories(Diligent-AndroidPlatform 
 PUBLIC
-    include
+    interface
 )
 
-target_link_libraries(AndroidPlatform 
-PRIVATE 
-    NDKHelper
+target_link_libraries(Diligent-AndroidPlatform 
+PRIVATE
     log
+    android
+    Diligent-BuildSettings 
 PUBLIC
-    BuildSettings 
-    PlatformInterface
-    BasicPlatform
+    Diligent-PlatformInterface
+    Diligent-BasicPlatform
 )
 
 source_group("src" FILES ${SOURCE})
 source_group("include" FILES ${INCLUDE})
 source_group("interface" FILES ${PLATFORM_INTERFACE_HEADERS})
 
-set_target_properties(AndroidPlatform PROPERTIES
-    FOLDER Core/Platforms
+set_target_properties(Diligent-AndroidPlatform PROPERTIES
+    FOLDER DiligentCore/Platforms
 )
+
+if(DILIGENT_INSTALL_CORE)
+    install_core_lib(Diligent-AndroidPlatform)
+endif()

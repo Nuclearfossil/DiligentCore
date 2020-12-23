@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -24,70 +28,65 @@
 #pragma once
 
 #if defined(ANDROID)
-#   ifndef PLATFORM_ANDROID
-#       define PLATFORM_ANDROID 1
-#   endif
+#    ifndef PLATFORM_ANDROID
+#        define PLATFORM_ANDROID 1
+#    endif
 #endif
 
 #if !PLATFORM_WIN32 && !PLATFORM_UNIVERSAL_WINDOWS && !PLATFORM_ANDROID && !PLATFORM_LINUX && !PLATFORM_MACOS && !PLATFORM_IOS
-    #error Platform is not defined
-#endif
-
-
-#if !D3D11_SUPPORTED && !D3D12_SUPPORTED && !GL_SUPPORTED && !GLES_SUPPORTED
-    #error No API is supported on this platform. Did you define at least one of D3D11_SUPPORTED, D3D12_SUPPORTED, GL_SUPPORTED or GLES_SUPPORTED macros as 1?
+#    error Unknown platform. Please define one of the following macros as 1:  PLATFORM_WIN32, PLATFORM_UNIVERSAL_WINDOWS, PLATFORM_ANDROID, PLATFORM_LINUX, PLATFORM_MACOS, PLATFORM_IOS.
 #endif
 
 #if PLATFORM_WIN32
 
-#   if PLATFORM_UNIVERSAL_WINDOWS || PLATFORM_ANDROID || PLATFORM_LINUX || PLATFORM_MACOS || PLATFORM_IOS
-#       error Conflicting platform macros
-#   endif
+#    if PLATFORM_UNIVERSAL_WINDOWS || PLATFORM_ANDROID || PLATFORM_LINUX || PLATFORM_MACOS || PLATFORM_IOS
+#        error Conflicting platform macros
+#    endif
 
-#   include "../Win32/include/Win32PlatformDefinitions.h"
+#    include "../Win32/interface/Win32PlatformDefinitions.h"
 
 #elif PLATFORM_UNIVERSAL_WINDOWS
 
-#   if PLATFORM_WIN32 || PLATFORM_ANDROID || PLATFORM_LINUX || PLATFORM_MACOS || PLATFORM_IOS
-#       error Conflicting platform macros
-#   endif
+#    if PLATFORM_WIN32 || PLATFORM_ANDROID || PLATFORM_LINUX || PLATFORM_MACOS || PLATFORM_IOS
+#        error Conflicting platform macros
+#    endif
 
-#   include "../UWP/include/UWPDefinitions.h"
+#    include "../UWP/interface/UWPDefinitions.h"
 
 #elif PLATFORM_ANDROID
 
-#   if PLATFORM_WIN32 || PLATFORM_UNIVERSAL_WINDOWS || PLATFORM_LINUX || PLATFORM_MACOS || PLATFORM_IOS
-#       error Conflicting platform macros
-#   endif
+#    if PLATFORM_WIN32 || PLATFORM_UNIVERSAL_WINDOWS || PLATFORM_LINUX || PLATFORM_MACOS || PLATFORM_IOS
+#        error Conflicting platform macros
+#    endif
 
-#   include "../Android/include/AndroidPlatformDefinitions.h"
+#    include "../Android/interface/AndroidPlatformDefinitions.h"
 
 #elif PLATFORM_LINUX
 
-#   if PLATFORM_WIN32 || PLATFORM_UNIVERSAL_WINDOWS || PLATFORM_ANDROID || PLATFORM_MACOS || PLATFORM_IOS
-#       error Conflicting platform macros
-#   endif
+#    if PLATFORM_WIN32 || PLATFORM_UNIVERSAL_WINDOWS || PLATFORM_ANDROID || PLATFORM_MACOS || PLATFORM_IOS
+#        error Conflicting platform macros
+#    endif
 
-#   include "../Linux/include/LinuxPlatformDefinitions.h"
+#    include "../Linux/interface/LinuxPlatformDefinitions.h"
 
 #elif PLATFORM_MACOS
 
-#   if PLATFORM_WIN32 || PLATFORM_UNIVERSAL_WINDOWS || PLATFORM_ANDROID || PLATFORM_LINUX || PLATFORM_IOS
-#       error Conflicting platform macros
-#   endif
+#    if PLATFORM_WIN32 || PLATFORM_UNIVERSAL_WINDOWS || PLATFORM_ANDROID || PLATFORM_LINUX || PLATFORM_IOS
+#        error Conflicting platform macros
+#    endif
 
-#   include "../Apple/include/ApplePlatformDefinitions.h"
+#    include "../Apple/interface/ApplePlatformDefinitions.h"
 
 #elif PLATFORM_IOS
 
-#   if PLATFORM_WIN32 || PLATFORM_UNIVERSAL_WINDOWS || PLATFORM_ANDROID || PLATFORM_LINUX || PLATFORM_MACOS
-#       error Conflicting platform macros
-#   endif
+#    if PLATFORM_WIN32 || PLATFORM_UNIVERSAL_WINDOWS || PLATFORM_ANDROID || PLATFORM_LINUX || PLATFORM_MACOS
+#        error Conflicting platform macros
+#    endif
 
-#   include "../Apple/include/ApplePlatformDefinitions.h"
+#    include "../Apple/interface/ApplePlatformDefinitions.h"
 
 #else
 
-#   error Unsupported platform
+#    error Unsupported platform
 
 #endif

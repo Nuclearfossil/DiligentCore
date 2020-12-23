@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -22,181 +26,381 @@
  */
 
 #include "pch.h"
-#include "PipelineStateGLImpl.h"
-#include "RenderDeviceGLImpl.h"
-#include "ShaderGLImpl.h"
-#include "ShaderResourceBindingGLImpl.h"
+#include "PipelineStateGLImpl.hpp"
+#include "RenderDeviceGLImpl.hpp"
+#include "ShaderGLImpl.hpp"
+#include "ShaderResourceBindingGLImpl.hpp"
 #include "EngineMemory.h"
+#include "DeviceContextGLImpl.hpp"
 
 namespace Diligent
 {
 
-PipelineStateGLImpl::PipelineStateGLImpl(IReferenceCounters *pRefCounters, class RenderDeviceGLImpl *pDeviceGL, const PipelineStateDesc& PipelineDesc, bool bIsDeviceInternal) : 
-    TPipelineStateBase(pRefCounters, pDeviceGL, PipelineDesc, bIsDeviceInternal),
-    m_GLProgram(false)
+
+template <typename PSOCreateInfoType>
+void PipelineStateGLImpl::Initialize(const PSOCreateInfoType& CreateInfo, std::vector<ShaderGLImpl*>& Shaders)
 {
+    FixedLinearAllocator MemPool{GetRawAllocator()};
+    VERIFY_EXPR(m_NumShaderStages > 0 && m_NumShaderStages == Shaders.size());
+    if (!GetDevice()->GetDeviceCaps().Features.SeparablePrograms)
+        m_NumShaderStages = 1;
 
-    auto &DeviceCaps = pDeviceGL->GetDeviceCaps();
-    VERIFY( DeviceCaps.DevType != DeviceType::Undefined, "Device caps are not initialized" );
-    bool bIsProgramPipelineSupported = DeviceCaps.bSeparableProgramSupported;
+    const auto NumPrograms = GetNumShaderStages();
 
-    LinkGLProgram(bIsProgramPipelineSupported);
+    MemPool.AddSpace<GLProgramObj>(NumPrograms);
+    MemPool.AddSpace<GLProgramResources>(NumPrograms);
+    MemPool.AddSpace<SamplerPtr>(m_Desc.ResourceLayout.NumImmutableSamplers);
+
+    ReserveSpaceForPipelineDesc(CreateInfo, MemPool);
+
+    MemPool.Reserve();
+
+    m_GLPrograms = MemPool.ConstructArray<GLProgramObj>(NumPrograms, false);
+
+    // The memory is now owned by PipelineStateVkImpl and will be freed by Destruct().
+    auto* Ptr = MemPool.ReleaseOwnership();
+    VERIFY_EXPR(Ptr == m_GLPrograms);
+    (void)Ptr;
+
+    m_ProgramResources = MemPool.ConstructArray<GLProgramResources>(NumPrograms);
+
+    m_ImmutableSamplers = MemPool.ConstructArray<SamplerPtr>(m_Desc.ResourceLayout.NumImmutableSamplers);
+
+    // It is important to construct all objects before initializing them because if an exception is thrown,
+    // destructors will be called for all objects
+
+    InitResourceLayouts(Shaders, MemPool);
+    InitializePipelineDesc(CreateInfo, MemPool);
 }
 
-void PipelineStateGLImpl::LinkGLProgram(bool bIsProgramPipelineSupported)
-{
-    if( bIsProgramPipelineSupported )
+PipelineStateGLImpl::PipelineStateGLImpl(IReferenceCounters*                    pRefCounters,
+                                         RenderDeviceGLImpl*                    pDeviceGL,
+                                         const GraphicsPipelineStateCreateInfo& CreateInfo,
+                                         bool                                   bIsDeviceInternal) :
+    // clang-format off
+    TPipelineStateBase
     {
-        // Program pipelines are not shared between GL contexts, so we cannot create
-        // it now
-        m_ShaderResourceLayoutHash = 0;
-        for (Uint32 Shader = 0; Shader < m_NumShaders; ++Shader)
+        pRefCounters,
+        pDeviceGL,
+        CreateInfo,
+        bIsDeviceInternal
+    },
+    m_ResourceLayout      {*this},
+    m_StaticResourceLayout{*this}
+// clang-format on
+{
+    try
+    {
+        std::vector<ShaderGLImpl*> Shaders;
+        ExtractShaders<ShaderGLImpl>(CreateInfo, Shaders);
+
+        RefCntAutoPtr<ShaderGLImpl> pTempPS;
+        if (CreateInfo.pPS == nullptr)
         {
-            auto *pShaderGL = GetShader<ShaderGLImpl>(Shader);
-            HashCombine(m_ShaderResourceLayoutHash, pShaderGL->m_GlProgObj.GetAllResources().GetHash());
+            // Some OpenGL implementations fail if fragment shader is not present, so
+            // create a dummy one.
+            ShaderCreateInfo ShaderCI;
+            ShaderCI.SourceLanguage  = SHADER_SOURCE_LANGUAGE_GLSL;
+            ShaderCI.Source          = "void main(){}";
+            ShaderCI.Desc.ShaderType = SHADER_TYPE_PIXEL;
+            ShaderCI.Desc.Name       = "Dummy fragment shader";
+            pDeviceGL->CreateShader(ShaderCI, reinterpret_cast<IShader**>(static_cast<ShaderGLImpl**>(&pTempPS)));
+
+            Shaders.emplace_back(pTempPS);
+            m_ShaderStageTypes[m_NumShaderStages++] = SHADER_TYPE_PIXEL;
         }
+
+        Initialize(CreateInfo, Shaders);
     }
-    else
+    catch (...)
     {
-        // Create new progam
-        m_GLProgram.Create();
-        for( Uint32 Shader = 0; Shader < m_NumShaders; ++Shader )
-        {
-            auto *pCurrShader = GetShader<ShaderGLImpl>(Shader);
-            glAttachShader( m_GLProgram, pCurrShader->m_GLShaderObj );
-            CHECK_GL_ERROR( "glAttachShader() failed" );
-        }
-        glLinkProgram( m_GLProgram );
-        CHECK_GL_ERROR( "glLinkProgram() failed" );
-        int IsLinked = GL_FALSE;
-        glGetProgramiv( m_GLProgram, GL_LINK_STATUS, (int *)&IsLinked );
-        CHECK_GL_ERROR( "glGetProgramiv() failed" );
-        if( !IsLinked )
-        {
-            int LengthWithNull = 0, Length = 0;
-            // Notice that glGetProgramiv is used to get the length for a shader program, not glGetShaderiv.
-            // The length of the info log includes a null terminator.
-            glGetProgramiv( m_GLProgram, GL_INFO_LOG_LENGTH, &LengthWithNull );
-
-            // The maxLength includes the NULL character
-            std::vector<char> shaderProgramInfoLog( LengthWithNull );
-
-            // Notice that glGetProgramInfoLog  is used, not glGetShaderInfoLog.
-            glGetProgramInfoLog( m_GLProgram, LengthWithNull, &Length, &shaderProgramInfoLog[0] );
-            VERIFY( Length == LengthWithNull-1, "Incorrect program info log len" );
-            LOG_ERROR_MESSAGE( "Failed to link shader program:\n", &shaderProgramInfoLog[0], '\n');
-            UNEXPECTED( "glLinkProgram failed" );
-        }
-            
-        // Detach shaders from the program object
-        for( Uint32 Shader = 0; Shader < m_NumShaders; ++Shader )
-        {
-            auto *pCurrShader = GetShader<ShaderGLImpl>(Shader);
-            glDetachShader( m_GLProgram, pCurrShader->m_GLShaderObj );
-            CHECK_GL_ERROR( "glDetachShader() failed" );
-        }
-
-        std::vector<ShaderVariableDesc> MergedVarTypesArray;
-        std::vector<StaticSamplerDesc> MergedStSamArray;
-        SHADER_VARIABLE_TYPE DefaultVarType = SHADER_VARIABLE_TYPE_STATIC;
-        for( Uint32 Shader = 0; Shader < m_NumShaders; ++Shader )
-        {
-            auto *pCurrShader = GetShader<ShaderGLImpl>(Shader);
-            const auto& Desc = pCurrShader->GetDesc();
-            if (Shader == 0)
-            {
-                DefaultVarType = Desc.DefaultVariableType;
-                for (Uint32 v = 0; v < Desc.NumVariables; ++v)
-                {
-                    MergedVarTypesArray.push_back(Desc.VariableDesc[v]);
-                }
-                for (Uint32 s = 0; s < Desc.NumStaticSamplers; ++s)
-                {
-                    MergedStSamArray.push_back(Desc.StaticSamplers[s]);
-                }
-            }
-            else
-            {
-                if (DefaultVarType != Desc.DefaultVariableType)
-                {
-                    LOG_ERROR("Inconsistent default variable types for shaders in one program");
-                }
-            }
-        }
-
-        auto pDeviceGL = static_cast<RenderDeviceGLImpl*>( GetDevice() );
-        m_GLProgram.InitResources(pDeviceGL, DefaultVarType, MergedVarTypesArray.data(), static_cast<Uint32>(MergedVarTypesArray.size()), MergedStSamArray.data(), static_cast<Uint32>(MergedStSamArray.size()), *this);
-
-        m_ShaderResourceLayoutHash = m_GLProgram.GetAllResources().GetHash();
-    }   
+        Destruct();
+    }
 }
 
+PipelineStateGLImpl::PipelineStateGLImpl(IReferenceCounters*                   pRefCounters,
+                                         RenderDeviceGLImpl*                   pDeviceGL,
+                                         const ComputePipelineStateCreateInfo& CreateInfo,
+                                         bool                                  bIsDeviceInternal) :
+    // clang-format off
+    TPipelineStateBase
+    {
+        pRefCounters,
+        pDeviceGL,
+        CreateInfo,
+        bIsDeviceInternal
+    },
+    m_ResourceLayout      {*this},
+    m_StaticResourceLayout{*this}
+// clang-format on
+{
+    try
+    {
+        std::vector<ShaderGLImpl*> Shaders;
+        ExtractShaders<ShaderGLImpl>(CreateInfo, Shaders);
+
+        Initialize(CreateInfo, Shaders);
+    }
+    catch (...)
+    {
+        Destruct();
+    }
+}
 
 PipelineStateGLImpl::~PipelineStateGLImpl()
 {
-    static_cast<RenderDeviceGLImpl*>( GetDevice() )->OnDestroyPSO(this);
+    Destruct();
 }
 
-IMPLEMENT_QUERY_INTERFACE( PipelineStateGLImpl, IID_PipelineStateGL, TPipelineStateBase )
-
-void PipelineStateGLImpl::BindShaderResources(IResourceMapping *pResourceMapping, Uint32 Flags)
+void PipelineStateGLImpl::Destruct()
 {
-    if( GetDevice()->GetDeviceCaps().bSeparableProgramSupported )
+    TPipelineStateBase::Destruct();
+
+    auto& RawAllocator = GetRawAllocator();
+    m_StaticResourceCache.Destroy(RawAllocator);
+    GetDevice()->OnDestroyPSO(this);
+
+    if (m_ImmutableSamplers != nullptr)
     {
-        TPipelineStateBase::BindShaderResources(pResourceMapping, Flags);
+        for (Uint32 i = 0; i < m_Desc.ResourceLayout.NumImmutableSamplers; ++i)
+        {
+            m_ImmutableSamplers[i].~SamplerPtr();
+        }
     }
-    else
+
+    for (Uint32 i = 0; i < GetNumShaderStages(); ++i)
     {
-        if( m_GLProgram )
-            m_GLProgram.BindConstantResources( pResourceMapping, Flags );
+        if (m_GLPrograms != nullptr)
+        {
+            m_GLPrograms[i].~GLProgramObj();
+        }
+        if (m_ProgramResources != nullptr)
+        {
+            m_ProgramResources[i].~GLProgramResources();
+        }
+    }
+
+    if (void* pRawMem = m_GLPrograms)
+    {
+        RawAllocator.Free(pRawMem);
     }
 }
 
-void PipelineStateGLImpl::CreateShaderResourceBinding(IShaderResourceBinding **ppShaderResourceBinding)
+IMPLEMENT_QUERY_INTERFACE(PipelineStateGLImpl, IID_PipelineStateGL, TPipelineStateBase)
+
+
+void PipelineStateGLImpl::InitResourceLayouts(std::vector<ShaderGLImpl*>& Shaders,
+                                              FixedLinearAllocator&       MemPool)
 {
-    auto *pRenderDeviceGL = ValidatedCast<RenderDeviceGLImpl>( GetDevice() );
-    auto &SRBAllocator = pRenderDeviceGL->GetSRBAllocator();
-    auto pResBinding = NEW_RC_OBJ( SRBAllocator, "ShaderResourceBindingGLImpl instance", ShaderResourceBindingGLImpl)(this);
+    auto* const pDeviceGL  = GetDevice();
+    const auto& deviceCaps = pDeviceGL->GetDeviceCaps();
+    VERIFY(deviceCaps.DevType != RENDER_DEVICE_TYPE_UNDEFINED, "Device caps are not initialized");
+
+    auto pImmediateCtx = m_pDevice->GetImmediateContext();
+    VERIFY_EXPR(pImmediateCtx);
+    auto& GLState = pImmediateCtx.RawPtr<DeviceContextGLImpl>()->GetContextState();
+
+    {
+        m_TotalUniformBufferBindings = 0;
+        m_TotalSamplerBindings       = 0;
+        m_TotalImageBindings         = 0;
+        m_TotalStorageBufferBindings = 0;
+        if (deviceCaps.Features.SeparablePrograms)
+        {
+            // Program pipelines are not shared between GL contexts, so we cannot create
+            // it now
+            m_ShaderResourceLayoutHash = 0;
+            for (size_t i = 0; i < Shaders.size(); ++i)
+            {
+                auto*       pShaderGL  = Shaders[i];
+                const auto& ShaderDesc = pShaderGL->GetDesc();
+                m_GLPrograms[i]        = GLProgramObj{ShaderGLImpl::LinkProgram(&pShaderGL, 1, true)};
+                // Load uniforms and assign bindings
+                m_ProgramResources[i].LoadUniforms(ShaderDesc.ShaderType, m_GLPrograms[i], GLState,
+                                                   m_TotalUniformBufferBindings,
+                                                   m_TotalSamplerBindings,
+                                                   m_TotalImageBindings,
+                                                   m_TotalStorageBufferBindings);
+
+                HashCombine(m_ShaderResourceLayoutHash, m_ProgramResources[i].GetHash());
+            }
+        }
+        else
+        {
+            SHADER_TYPE ActiveStages = SHADER_TYPE_UNKNOWN;
+            for (const auto* pShader : Shaders)
+            {
+                const auto ShaderType = pShader->GetDesc().ShaderType;
+                VERIFY((ActiveStages & ShaderType) == 0, "Shader stage ", GetShaderTypeLiteralName(ShaderType), " is already active");
+                ActiveStages |= ShaderType;
+            }
+
+            m_GLPrograms[0] = ShaderGLImpl::LinkProgram(Shaders.data(), static_cast<Uint32>(Shaders.size()), false);
+
+            m_ProgramResources[0].LoadUniforms(ActiveStages, m_GLPrograms[0], GLState,
+                                               m_TotalUniformBufferBindings,
+                                               m_TotalSamplerBindings,
+                                               m_TotalImageBindings,
+                                               m_TotalStorageBufferBindings);
+
+            m_ShaderResourceLayoutHash = m_ProgramResources[0].GetHash();
+        }
+
+        // Initialize master resource layout that keeps all variable types and does not reference a resource cache
+        m_ResourceLayout.Initialize(m_ProgramResources, GetNumShaderStages(), m_Desc.PipelineType, m_Desc.ResourceLayout, nullptr, 0, nullptr);
+    }
+
+    for (Uint32 s = 0; s < m_Desc.ResourceLayout.NumImmutableSamplers; ++s)
+    {
+        pDeviceGL->CreateSampler(m_Desc.ResourceLayout.ImmutableSamplers[s].Desc, &m_ImmutableSamplers[s]);
+    }
+
+    {
+        // Clone only static variables into static resource layout, assign and initialize static resource cache
+        const SHADER_RESOURCE_VARIABLE_TYPE StaticVars[] = {SHADER_RESOURCE_VARIABLE_TYPE_STATIC};
+        m_StaticResourceLayout.Initialize(m_ProgramResources, GetNumShaderStages(), m_Desc.PipelineType, m_Desc.ResourceLayout, StaticVars, _countof(StaticVars), &m_StaticResourceCache);
+        InitImmutableSamplersInResourceCache(m_StaticResourceLayout, m_StaticResourceCache);
+    }
+}
+
+void PipelineStateGLImpl::CreateShaderResourceBinding(IShaderResourceBinding** ppShaderResourceBinding, bool InitStaticResources)
+{
+    auto* pRenderDeviceGL = GetDevice();
+    auto& SRBAllocator    = pRenderDeviceGL->GetSRBAllocator();
+    auto  pResBinding     = NEW_RC_OBJ(SRBAllocator, "ShaderResourceBindingGLImpl instance", ShaderResourceBindingGLImpl)(this, m_ProgramResources, GetNumShaderStages());
+    if (InitStaticResources)
+        pResBinding->InitializeStaticResources(this);
     pResBinding->QueryInterface(IID_ShaderResourceBinding, reinterpret_cast<IObject**>(ppShaderResourceBinding));
 }
 
-bool PipelineStateGLImpl::IsCompatibleWith(const IPipelineState *pPSO)const
+bool PipelineStateGLImpl::IsCompatibleWith(const IPipelineState* pPSO) const
 {
     VERIFY_EXPR(pPSO != nullptr);
 
     if (pPSO == this)
         return true;
 
-    const PipelineStateGLImpl *pPSOGL = ValidatedCast<const PipelineStateGLImpl>(pPSO);
+    const PipelineStateGLImpl* pPSOGL = ValidatedCast<const PipelineStateGLImpl>(pPSO);
     if (m_ShaderResourceLayoutHash != pPSOGL->m_ShaderResourceLayoutHash)
         return false;
 
-    return m_GLProgram.GetAllResources().IsCompatibleWith( pPSOGL->m_GLProgram.GetAllResources() );
+    if (GetNumShaderStages() != pPSOGL->GetNumShaderStages())
+        return false;
+
+    for (size_t i = 0; i < GetNumShaderStages(); ++i)
+    {
+        if (!m_ProgramResources[i].IsCompatibleWith(pPSOGL->m_ProgramResources[i]))
+            return false;
+    }
+
+    return true;
 }
 
-GLObjectWrappers::GLPipelineObj &PipelineStateGLImpl::GetGLProgramPipeline(GLContext::NativeGLContextType Context)
+void PipelineStateGLImpl::CommitProgram(GLContextState& State)
 {
-    ThreadingTools::LockHelper Lock(m_ProgPipelineLockFlag);
-    auto it = m_GLProgPipelines.find(Context);
-    if (it != m_GLProgPipelines.end())
-        return it->second;
+    auto ProgramPipelineSupported = m_pDevice->GetDeviceCaps().Features.SeparablePrograms;
+
+    if (ProgramPipelineSupported)
+    {
+        // WARNING: glUseProgram() overrides glBindProgramPipeline(). That is, if you have a program in use and
+        // a program pipeline bound, all rendering will use the program that is in use, not the pipeline programs!
+        // So make sure that glUseProgram(0) has been called if pipeline is in use
+        State.SetProgram(GLObjectWrappers::GLProgramObj::Null());
+        auto& Pipeline = GetGLProgramPipeline(State.GetCurrentGLContext());
+        VERIFY(Pipeline != 0, "Program pipeline must not be null");
+        State.SetPipeline(Pipeline);
+    }
     else
     {
-        // Create new progam pipeline
-        it = m_GLProgPipelines.emplace( Context, true ).first;
-        GLuint Pipeline = it->second;
-        for (Uint32 Shader = 0; Shader < m_NumShaders; ++Shader)
-        {
-            auto *pCurrShader = GetShader<ShaderGLImpl>(Shader);
-            auto GLShaderBit = ShaderTypeToGLShaderBit(pCurrShader->GetDesc().ShaderType);
-            // If the program has an active code for each stage mentioned in set flags,
-            // then that code will be used by the pipeline. If program is 0, then the given
-            // stages are cleared from the pipeline.
-            glUseProgramStages(Pipeline, GLShaderBit, pCurrShader->m_GlProgObj);
-            CHECK_GL_ERROR("glUseProgramStages() failed");
-        }
-        return it->second;
+        VERIFY_EXPR(m_GLPrograms != nullptr);
+        State.SetProgram(m_GLPrograms[0]);
     }
 }
 
+GLObjectWrappers::GLPipelineObj& PipelineStateGLImpl::GetGLProgramPipeline(GLContext::NativeGLContextType Context)
+{
+    ThreadingTools::LockHelper Lock(m_ProgPipelineLockFlag);
+    for (auto& ctx_pipeline : m_GLProgPipelines)
+    {
+        if (ctx_pipeline.first == Context)
+            return ctx_pipeline.second;
+    }
+
+    // Create new progam pipeline
+    m_GLProgPipelines.emplace_back(Context, true);
+    auto&  ctx_pipeline = m_GLProgPipelines.back();
+    GLuint Pipeline     = ctx_pipeline.second;
+    for (Uint32 i = 0; i < GetNumShaderStages(); ++i)
+    {
+        auto GLShaderBit = ShaderTypeToGLShaderBit(GetShaderStageType(i));
+        // If the program has an active code for each stage mentioned in set flags,
+        // then that code will be used by the pipeline. If program is 0, then the given
+        // stages are cleared from the pipeline.
+        glUseProgramStages(Pipeline, GLShaderBit, m_GLPrograms[i]);
+        CHECK_GL_ERROR("glUseProgramStages() failed");
+    }
+    return ctx_pipeline.second;
 }
+
+void PipelineStateGLImpl::InitializeSRBResourceCache(GLProgramResourceCache& ResourceCache) const
+{
+    ResourceCache.Initialize(m_TotalUniformBufferBindings, m_TotalSamplerBindings, m_TotalImageBindings, m_TotalStorageBufferBindings, GetRawAllocator());
+    InitImmutableSamplersInResourceCache(m_ResourceLayout, ResourceCache);
+}
+
+void PipelineStateGLImpl::InitImmutableSamplersInResourceCache(const GLPipelineResourceLayout& ResourceLayout, GLProgramResourceCache& Cache) const
+{
+    for (Uint32 s = 0; s < ResourceLayout.GetNumResources<GLPipelineResourceLayout::SamplerBindInfo>(); ++s)
+    {
+        const auto& Sam = ResourceLayout.GetConstResource<GLPipelineResourceLayout::SamplerBindInfo>(s);
+        if (Sam.m_ImtblSamplerIdx >= 0)
+        {
+            ISampler* pSampler = m_ImmutableSamplers[Sam.m_ImtblSamplerIdx].RawPtr<ISampler>();
+            for (Uint32 binding = Sam.m_Attribs.Binding; binding < Sam.m_Attribs.Binding + Sam.m_Attribs.ArraySize; ++binding)
+                Cache.SetImmutableSampler(binding, pSampler);
+        }
+    }
+}
+
+void PipelineStateGLImpl::BindStaticResources(Uint32 ShaderFlags, IResourceMapping* pResourceMapping, Uint32 Flags)
+{
+    m_StaticResourceLayout.BindResources(static_cast<SHADER_TYPE>(ShaderFlags), pResourceMapping, Flags, m_StaticResourceCache);
+}
+
+Uint32 PipelineStateGLImpl::GetStaticVariableCount(SHADER_TYPE ShaderType) const
+{
+    if (!IsConsistentShaderType(ShaderType, m_Desc.PipelineType))
+    {
+        LOG_WARNING_MESSAGE("Unable to get the number of static variables in shader stage ", GetShaderTypeLiteralName(ShaderType),
+                            " as the stage is invalid for ", GetPipelineTypeString(m_Desc.PipelineType), " pipeline '", m_Desc.Name, "'");
+        return 0;
+    }
+
+    return m_StaticResourceLayout.GetNumVariables(ShaderType);
+}
+
+IShaderResourceVariable* PipelineStateGLImpl::GetStaticVariableByName(SHADER_TYPE ShaderType, const Char* Name)
+{
+    if (!IsConsistentShaderType(ShaderType, m_Desc.PipelineType))
+    {
+        LOG_WARNING_MESSAGE("Unable to find static variable '", Name, "' in shader stage ", GetShaderTypeLiteralName(ShaderType),
+                            " as the stage is invalid for ", GetPipelineTypeString(m_Desc.PipelineType), " pipeline '", m_Desc.Name, "'");
+        return nullptr;
+    }
+
+    return m_StaticResourceLayout.GetShaderVariable(ShaderType, Name);
+}
+
+IShaderResourceVariable* PipelineStateGLImpl::GetStaticVariableByIndex(SHADER_TYPE ShaderType, Uint32 Index)
+{
+    if (!IsConsistentShaderType(ShaderType, m_Desc.PipelineType))
+    {
+        LOG_WARNING_MESSAGE("Unable to get static variable at index ", Index, " in shader stage ", GetShaderTypeLiteralName(ShaderType),
+                            " as the stage is invalid for ", GetPipelineTypeString(m_Desc.PipelineType), " pipeline '", m_Desc.Name, "'");
+        return nullptr;
+    }
+
+    return m_StaticResourceLayout.GetShaderVariable(ShaderType, Index);
+}
+
+} // namespace Diligent

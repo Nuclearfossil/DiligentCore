@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -514,15 +518,25 @@ void _ResizeVector(out vec2 outVec2, in float v){outVec2 = vec2(v, 0.0);}
 void _ResizeVector(out float outFlt, in float v){outFlt  = v;}
 
 
-void _TypeConvertStore( out float Dst, in int   Src ){ Dst = float( Src ); }
-void _TypeConvertStore( out float Dst, in uint  Src ){ Dst = float( Src ); }
-void _TypeConvertStore( out float Dst, in float Src ){ Dst = float( Src ); }
-void _TypeConvertStore( out uint  Dst, in int   Src ){ Dst = uint( Src ); }
-void _TypeConvertStore( out uint  Dst, in uint  Src ){ Dst = uint( Src ); }
-void _TypeConvertStore( out uint  Dst, in float Src ){ Dst = uint( Src ); }
-void _TypeConvertStore( out int   Dst, in int   Src ){ Dst = int( Src ); }
-void _TypeConvertStore( out int   Dst, in uint  Src ){ Dst = int( Src ); }
-void _TypeConvertStore( out int   Dst, in float Src ){ Dst = int( Src ); }
+void _TypeConvertStore( out float Dst, in int   Src ){ Dst = float( Src );    }
+void _TypeConvertStore( out float Dst, in uint  Src ){ Dst = float( Src );    }
+void _TypeConvertStore( out float Dst, in float Src ){ Dst = float( Src );    }
+void _TypeConvertStore( out float Dst, in bool  Src ){ Dst = Src ? 1.0 : 0.0; }
+
+void _TypeConvertStore( out uint  Dst, in int   Src ){ Dst = uint( Src );   }
+void _TypeConvertStore( out uint  Dst, in uint  Src ){ Dst = uint( Src );   }
+void _TypeConvertStore( out uint  Dst, in float Src ){ Dst = uint( Src );   }
+void _TypeConvertStore( out uint  Dst, in bool  Src ){ Dst = Src ? 1u : 0u; }
+
+void _TypeConvertStore( out int   Dst, in int   Src ){ Dst = int( Src );  }
+void _TypeConvertStore( out int   Dst, in uint  Src ){ Dst = int( Src );  }
+void _TypeConvertStore( out int   Dst, in float Src ){ Dst = int( Src );  }
+void _TypeConvertStore( out int   Dst, in bool  Src ){ Dst = Src ? 1 : 0; }
+
+void _TypeConvertStore( out bool  Dst, in int   Src ){ Dst = (Src != 0);   }
+void _TypeConvertStore( out bool  Dst, in uint  Src ){ Dst = (Src != 0u);  }
+void _TypeConvertStore( out bool  Dst, in float Src ){ Dst = (Src != 0.0); }
+void _TypeConvertStore( out bool  Dst, in bool  Src ){ Dst = Src;          }
 
 
 int _ToInt( int x )    { return int(x);     }
@@ -643,6 +657,41 @@ uvec2  _ToUvec( vec2  f2 ){ return _ToUvec2( f2.x, f2.y ); }
 uvec3  _ToUvec( vec3  f3 ){ return _ToUvec3( f3.x, f3.y, f3.z ); }
 uvec4  _ToUvec( vec4  f4 ){ return _ToUvec4( f4.x, f4.y, f4.z, f4.w ); }
 
+// https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/frexp.xhtml
+// https://www.khronos.org/registry/OpenGL-Refpages/es3.1/html/frexp.xhtml
+#if defined(GL_ES) && (__VERSION__>=310) || !defined(GL_ES) && (__VERSION__>=400)
+// We have to redefine 'float frexp(float, int)' as 'float frexp(float, float)'
+float _frexp(float f1, out float fexp1)
+{
+    int iexp1;
+    float sig1 = frexp(f1, iexp1);
+    fexp1 = float(iexp1);
+    return sig1;
+}
+vec2 _frexp(vec2 f2, out vec2 fexp2)
+{
+    ivec2 iexp2;
+    vec2 sig2 = frexp(f2, iexp2);
+    fexp2 = vec2(iexp2);
+    return sig2;
+}
+vec3 _frexp(vec3 f3, out vec3 fexp3)
+{
+    ivec3 iexp3;
+    vec3 sig3 = frexp(f3, iexp3);
+    fexp3 = vec3(iexp3);
+    return sig3;
+}
+vec4 _frexp(vec4 f4, out vec4 fexp4)
+{
+    ivec4 iexp4;
+    vec4 sig4 = frexp(f4, iexp4);
+    fexp4 = vec4(iexp4);
+    return sig4;
+}
+#define frexp _frexp
+#endif
+
 
 // TEXTURE FUNCTION STUB MACROS
 // https://www.opengl.org/wiki/Sampler_(GLSL)
@@ -751,6 +800,11 @@ uvec4  _ToUvec( vec4  f4 ){ return _ToUvec4( f4.x, f4.y, f4.z, f4.w ); }
     _TypeConvertStore( NumberOfSamples, 0 );\
 }
 
+#define GetTexBufferDimensions_1(Sampler, Width)\
+{                                                    \
+    _TypeConvertStore( Width, textureSize(Sampler) );\
+}
+
 
 // https://www.opengl.org/sdk/docs/man/html/imageSize.xhtml
 // imageSize returns the dimensions of the image bound to image. The components in the 
@@ -793,6 +847,10 @@ uvec4  _ToUvec( vec4  f4 ){ return _ToUvec4( f4.x, f4.y, f4.z, f4.w ); }
     _TypeConvertStore( Depth,  i3Size.z );  \
 }
 
+#define GetRWTexBufferDimensions_1(Tex, Width)\
+{                                               \
+    _TypeConvertStore( Width, imageSize(Tex) ); \
+}
 
 
 // Texture sampling operations
@@ -911,6 +969,7 @@ uvec4  _ToUvec( vec4  f4 ){ return _ToUvec4( f4.x, f4.y, f4.z, f4.w ); }
 #define LoadTex2DMS_3(Tex, Location, Sample, Offset)texelFetch(Tex, _ToIvec2( (Location).x + (Offset).x, (Location).y + (Offset).y), int(Sample) ) // No texelFetchOffset for texture2DMS
 #define LoadTex2DMSArr_2(Tex, Location, Sample)        texelFetch(Tex, _ToIvec( (Location).xyz), _ToInt(Sample))
 #define LoadTex2DMSArr_3(Tex, Location, Sample, Offset)texelFetch(Tex, _ToIvec3( (Location).x + (Offset).x, (Location).y + (Offset).y, (Location).z), int(Sample)) // No texelFetchOffset for texture2DMSArray
+#define LoadTexBuffer_1(Tex, Location)  texelFetch(Tex, _ToInt(Location))
 
 //https://www.opengl.org/sdk/docs/man/html/imageLoad.xhtml
 #define LoadRWTex1D_1(Tex, Location)    imageLoad(Tex, _ToInt(Location)        )
@@ -918,7 +977,7 @@ uvec4  _ToUvec( vec4  f4 ){ return _ToUvec4( f4.x, f4.y, f4.z, f4.w ); }
 #define LoadRWTex2D_1(Tex, Location)    imageLoad(Tex, _ToIvec((Location).xy)  )
 #define LoadRWTex2DArr_1(Tex, Location) imageLoad(Tex, _ToIvec((Location).xyz) )
 #define LoadRWTex3D_1(Tex, Location)    imageLoad(Tex, _ToIvec((Location).xyz) )
-
+#define LoadRWTexBuffer_1(Tex, Location)imageLoad(Tex, _ToInt(Location)        )
 
 #define Gather_2(Tex, Sampler, Location)        textureGather      (Tex, _ToVec(Location))
 #define Gather_3(Tex, Sampler, Location, Offset)textureGatherOffset(Tex, _ToVec(Location), Offset)
@@ -981,7 +1040,7 @@ uvec4  _ToUvec( vec4  f4 ){ return _ToUvec4( f4.x, f4.y, f4.z, f4.w ); }
 
 // Helper functions
 
-#ifdef TARGET_API_VULKAN
+#ifdef VULKAN
 
 #define NDC_MIN_Z 0.0 // Minimal z in the normalized device space
 
@@ -1001,6 +1060,10 @@ uvec4  _ToUvec( vec4  f4 ){ return _ToUvec4( f4.x, f4.y, f4.z, f4.w ); }
 float2 NormalizedDeviceXYToTexUV( float2 f2ProjSpaceXY )
 {
     return float2(0.5,0.5) + F3NDC_XYZ_TO_UVD_SCALE.xy * f2ProjSpaceXY.xy;
+}
+float2 TexUVToNormalizedDeviceXY( float2 TexUV)
+{
+    return (TexUV.xy - float2(0.5, 0.5)) / F3NDC_XYZ_TO_UVD_SCALE.xy;
 }
 
 float NormalizedDeviceZToDepth(float fNDC_Z)
@@ -1049,7 +1112,9 @@ out gl_PerVertex
 // --------------------------------- Fragment shader ---------------------------------
 #ifdef FRAGMENT_SHADER
 
-#define _GET_GL_FRAG_COORD(FragCoord)_ResizeVector(FragCoord, gl_FragCoord)
+// SV_Position.w == w, while gl_FragCoord.w == 1/w
+#define _GET_GL_FRAG_COORD(FragCoord)_ResizeVector(FragCoord, vec4(gl_FragCoord.xyz, 1.0/gl_FragCoord.w))
+#define _GET_GL_FRONT_FACING(FrontFacing)_TypeConvertStore(FrontFacing, gl_FrontFacing)
 #define _SET_GL_FRAG_DEPTH(Depth)_TypeConvertStore(gl_FragDepth, Depth)
 
 #endif

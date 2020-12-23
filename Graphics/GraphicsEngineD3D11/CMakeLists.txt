@@ -1,45 +1,48 @@
 cmake_minimum_required (VERSION 3.10)
 
-project(GraphicsEngineD3D11 CXX)
+project(Diligent-GraphicsEngineD3D11 CXX)
 
 
 set(INCLUDE 
-    include/BufferD3D11Impl.h
-    include/BufferViewD3D11Impl.h
-    include/CommandListD3D11Impl.h
-    include/D3D11DebugUtilities.h
-    include/D3D11TypeConversions.h
+    include/BufferD3D11Impl.hpp
+    include/BufferViewD3D11Impl.hpp
+    include/CommandListD3D11Impl.hpp
+    include/D3D11TypeConversions.hpp
     include/D3D11TypeDefinitions.h
-    include/DeviceContextD3D11Impl.h
+    include/DeviceContextD3D11Impl.hpp
+    include/DisjointQueryPool.hpp
     include/EngineD3D11Defines.h
     include/pch.h
-	include/FenceD3D11Impl.h
-    include/PipelineStateD3D11Impl.h
-    include/RenderDeviceD3D11Impl.h
-    include/SamplerD3D11Impl.h
-    include/ShaderD3D11Impl.h
-    include/ShaderResourceBindingD3D11Impl.h
-    include/ShaderResourceCacheD3D11.h
-    include/ShaderResourceLayoutD3D11.h
-    include/ShaderResourcesD3D11.h
-    include/SwapChainD3D11Impl.h
+	include/FenceD3D11Impl.hpp
+    include/FramebufferD3D11Impl.hpp
+    include/PipelineStateD3D11Impl.hpp
+    include/QueryD3D11Impl.hpp
+    include/RenderDeviceD3D11Impl.hpp
+    include/RenderPassD3D11Impl.hpp
+    include/SamplerD3D11Impl.hpp
+    include/ShaderD3D11Impl.hpp
+    include/ShaderResourceBindingD3D11Impl.hpp
+    include/ShaderResourceCacheD3D11.hpp
+    include/ShaderResourceLayoutD3D11.hpp
+    include/ShaderResourcesD3D11.hpp
+    include/SwapChainD3D11Impl.hpp
     include/targetver.h
-    include/Texture1D_D3D11.h
-    include/Texture2D_D3D11.h
-    include/Texture3D_D3D11.h
-    include/TextureBaseD3D11.h
-    include/TextureViewD3D11Impl.h
+    include/Texture1D_D3D11.hpp
+    include/Texture2D_D3D11.hpp
+    include/Texture3D_D3D11.hpp
+    include/TextureBaseD3D11.hpp
+    include/TextureViewD3D11Impl.hpp
 )
 
 set(INTERFACE 
     interface/BufferD3D11.h
     interface/BufferViewD3D11.h
     interface/DeviceContextD3D11.h
-    interface/EngineD3D11Attribs.h
+    interface/EngineFactoryD3D11.h
     interface/FenceD3D11.h
     interface/PipelineStateD3D11.h
+    interface/QueryD3D11.h
     interface/RenderDeviceD3D11.h
-    interface/RenderDeviceFactoryD3D11.h
     interface/SamplerD3D11.h
     interface/ShaderD3D11.h
     interface/ShaderResourceBindingD3D11.h
@@ -53,13 +56,16 @@ set(SRC
     src/BufferD3D11Impl.cpp
     src/BufferViewD3D11Impl.cpp
     src/CommandListD3D11Impl.cpp
-    src/D3D11DebugUtilities.cpp
     src/D3D11TypeConversions.cpp
     src/DeviceContextD3D11Impl.cpp
+    src/EngineFactoryD3D11.cpp
     src/FenceD3D11Impl.cpp
+    src/FramebufferD3D11Impl.cpp
+    src/GUIDDef.cpp
     src/PipelineStateD3D11Impl.cpp
+    src/QueryD3D11Impl.cpp
     src/RenderDeviceD3D11Impl.cpp
-    src/RenderDeviceFactoryD3D11.cpp
+    src/RenderPassD3D11Impl.cpp
     src/SamplerD3D11Impl.cpp
     src/ShaderD3D11Impl.cpp
     src/ShaderResourceBindingD3D11Impl.cpp
@@ -74,63 +80,61 @@ set(SRC
     src/TextureViewD3D11Impl.cpp
 )
 
-add_library(GraphicsEngineD3D11Interface INTERFACE)
-target_include_directories(GraphicsEngineD3D11Interface
+add_library(Diligent-GraphicsEngineD3D11Interface INTERFACE)
+target_include_directories(Diligent-GraphicsEngineD3D11Interface
 INTERFACE
     interface
 )
-target_link_libraries(GraphicsEngineD3D11Interface 
+target_link_libraries(Diligent-GraphicsEngineD3D11Interface 
 INTERFACE 
-    GraphicsEngineInterface
+    Diligent-GraphicsEngineD3DBaseInterface
 )
 
 
-add_library(GraphicsEngineD3D11-static STATIC 
+add_library(Diligent-GraphicsEngineD3D11-static STATIC 
     ${SRC} ${INTERFACE} ${INCLUDE}
     readme.md
 )
 
-add_library(GraphicsEngineD3D11-shared SHARED 
-    ${SRC} ${INTERFACE} ${INCLUDE}
+add_library(Diligent-GraphicsEngineD3D11-shared SHARED 
     src/DLLMain.cpp
     src/GraphicsEngineD3D11.def
     readme.md
 )
 
 # Set output name to GraphicsEngineD3D11_{32|64}{r|d}
-set_dll_output_name(GraphicsEngineD3D11-shared GraphicsEngineD3D11)
+set_dll_output_name(Diligent-GraphicsEngineD3D11-shared GraphicsEngineD3D11)
 
-set_common_target_properties(GraphicsEngineD3D11-shared)
-set_common_target_properties(GraphicsEngineD3D11-static)
+set_common_target_properties(Diligent-GraphicsEngineD3D11-shared)
+set_common_target_properties(Diligent-GraphicsEngineD3D11-static)
 
-target_include_directories(GraphicsEngineD3D11-static 
+target_include_directories(Diligent-GraphicsEngineD3D11-static 
 PRIVATE
     include
 )
 
-target_include_directories(GraphicsEngineD3D11-shared
+target_link_libraries(Diligent-GraphicsEngineD3D11-static
 PRIVATE
-    include
-)
-
-set(PRIVATE_DEPENDENCIES 
-    BuildSettings 
-    GraphicsEngineD3DBase 
-    TargetPlatform
-    Common
+    Diligent-BuildSettings
+    Diligent-GraphicsEngineD3DBase
+    Diligent-TargetPlatform
+    Diligent-Common
+    Diligent-ShaderTools 
     dxgi.lib
-    d3d11.lib 
+    d3d11.lib
     d3dcompiler.lib
+PUBLIC
+    Diligent-GraphicsEngineD3D11Interface
 )
 
-set(PUBLIC_DEPENDENCIES 
-    GraphicsEngineD3D11Interface
+target_link_libraries(Diligent-GraphicsEngineD3D11-shared
+PRIVATE
+    Diligent-BuildSettings 
+    Diligent-GraphicsEngineD3D11-static
+PUBLIC
+    Diligent-GraphicsEngineD3D11Interface
 )
-
-target_link_libraries(GraphicsEngineD3D11-static PRIVATE ${PRIVATE_DEPENDENCIES} PUBLIC ${PUBLIC_DEPENDENCIES})
-
-target_link_libraries(GraphicsEngineD3D11-shared PRIVATE ${PRIVATE_DEPENDENCIES} PUBLIC ${PUBLIC_DEPENDENCIES})
-target_compile_definitions(GraphicsEngineD3D11-shared PUBLIC ENGINE_DLL=1)
+target_compile_definitions(Diligent-GraphicsEngineD3D11-shared PUBLIC ENGINE_DLL=1)
 
 source_group("src" FILES ${SRC} )
 
@@ -142,13 +146,18 @@ source_group("dll" FILES
 source_group("include" FILES ${INCLUDE})
 source_group("interface" FILES ${INTERFACE})
 
-set_target_properties(GraphicsEngineD3D11-static PROPERTIES
-    FOLDER Core/Graphics
+set_target_properties(Diligent-GraphicsEngineD3D11-static PROPERTIES
+    FOLDER DiligentCore/Graphics
 )
-set_target_properties(GraphicsEngineD3D11-shared PROPERTIES
-    FOLDER Core/Graphics
+set_target_properties(Diligent-GraphicsEngineD3D11-shared PROPERTIES
+    FOLDER DiligentCore/Graphics
 )
 
 set_source_files_properties(
     readme.md PROPERTIES HEADER_FILE_ONLY TRUE
 )
+
+if(DILIGENT_INSTALL_CORE)
+    install_core_lib(Diligent-GraphicsEngineD3D11-shared)
+    install_core_lib(Diligent-GraphicsEngineD3D11-static)
+endif()

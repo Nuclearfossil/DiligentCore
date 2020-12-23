@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -23,63 +27,63 @@
 
 #include "pch.h"
 
-#include "TextureViewGLImpl.h"
-#include "RenderDeviceGLImpl.h"
-#include "TextureBaseGL.h"
-#include "DeviceContextGLImpl.h"
+#include "TextureViewGLImpl.hpp"
+#include "RenderDeviceGLImpl.hpp"
+#include "TextureBaseGL.hpp"
+#include "DeviceContextGLImpl.hpp"
 
 namespace Diligent
 {
-    TextureViewGLImpl::TextureViewGLImpl( IReferenceCounters *pRefCounters,
-                                          RenderDeviceGLImpl *pDevice, 
-                                          const TextureViewDesc& ViewDesc, 
-                                          TextureBaseGL* pTexture,
-                                          bool bCreateGLViewTex,
-                                          bool bIsDefaultView ) :
-        TTextureViewBase(pRefCounters, pDevice, ViewDesc, pTexture, bIsDefaultView),
-        m_ViewTexGLHandle( bCreateGLViewTex ),
-        m_ViewTexBindTarget(0)
-    {
-    }
 
-    TextureViewGLImpl::~TextureViewGLImpl()
+TextureViewGLImpl::TextureViewGLImpl(IReferenceCounters*    pRefCounters,
+                                     RenderDeviceGLImpl*    pDevice,
+                                     const TextureViewDesc& ViewDesc,
+                                     TextureBaseGL*         pTexture,
+                                     bool                   bCreateGLViewTex,
+                                     bool                   bIsDefaultView) :
+    // clang-format off
+    TTextureViewBase
     {
-    }
+        pRefCounters,
+        pDevice,
+        ViewDesc,
+        pTexture,
+        bIsDefaultView
+    },
+    m_ViewTexGLHandle   {bCreateGLViewTex},
+    m_ViewTexBindTarget {0               }
+// clang-format on
+{
+}
 
-    IMPLEMENT_QUERY_INTERFACE( TextureViewGLImpl, IID_TextureViewGL, TTextureViewBase )
+TextureViewGLImpl::~TextureViewGLImpl()
+{
+}
 
-    const GLObjectWrappers::GLTextureObj& TextureViewGLImpl::GetHandle()
+IMPLEMENT_QUERY_INTERFACE(TextureViewGLImpl, IID_TextureViewGL, TTextureViewBase)
+
+const GLObjectWrappers::GLTextureObj& TextureViewGLImpl::GetHandle()
+{
+    if (m_ViewTexGLHandle)
+        return m_ViewTexGLHandle;
+    else
     {
-        if( m_ViewTexGLHandle )
-            return m_ViewTexGLHandle;
-        else
-        {
-            auto *pTexture = GetTexture();
-            CHECK_DYNAMIC_TYPE( TextureBaseGL, pTexture );
-            return static_cast<TextureBaseGL*>(pTexture)->GetGLHandle();
-        }
-    }
-
-    GLenum TextureViewGLImpl::GetBindTarget()
-    {
-        if( m_ViewTexGLHandle )
-            return m_ViewTexBindTarget;
-        else
-        {
-            auto *pTexture = GetTexture();
-            CHECK_DYNAMIC_TYPE( TextureBaseGL, pTexture );
-            return static_cast<TextureBaseGL*>(pTexture)->GetBindTarget();
-        }
-    }
-
-    void TextureViewGLImpl::GenerateMips( IDeviceContext *pContext )
-    {
-        auto pCtxGL = ValidatedCast<DeviceContextGLImpl>( pContext );
-        auto &GLState = pCtxGL->GetContextState();
-        auto BindTarget = GetBindTarget();
-        GLState.BindTexture( -1, BindTarget, GetHandle() );
-        glGenerateMipmap( BindTarget );
-        CHECK_GL_ERROR( "Failed to generate mip maps" );
-        GLState.BindTexture( -1, BindTarget, GLObjectWrappers::GLTextureObj(false) );
+        auto* pTexture = GetTexture();
+        CHECK_DYNAMIC_TYPE(TextureBaseGL, pTexture);
+        return static_cast<TextureBaseGL*>(pTexture)->GetGLHandle();
     }
 }
+
+GLenum TextureViewGLImpl::GetBindTarget()
+{
+    if (m_ViewTexGLHandle)
+        return m_ViewTexBindTarget;
+    else
+    {
+        auto* pTexture = GetTexture();
+        CHECK_DYNAMIC_TYPE(TextureBaseGL, pTexture);
+        return static_cast<TextureBaseGL*>(pTexture)->GetBindTarget();
+    }
+}
+
+} // namespace Diligent

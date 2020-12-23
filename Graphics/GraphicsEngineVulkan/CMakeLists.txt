@@ -1,49 +1,57 @@
 cmake_minimum_required (VERSION 3.10)
 
-project(GraphicsEngineVk CXX)
+project(Diligent-GraphicsEngineVk CXX)
 
 set(INCLUDE 
-    include/BufferVkImpl.h
-    include/BufferViewVkImpl.h
-    include/CommandListVkImpl.h
-    include/CommandPoolManager.h
-    include/CommandQueueVkImpl.h
-    include/DescriptorPoolManager.h
-    include/DeviceContextVkImpl.h
-    include/FenceVkImpl.h
-    include/VulkanDynamicHeap.h
-    include/FramebufferCache.h
-    include/GenerateMipsVkHelper.h
+    include/BufferVkImpl.hpp
+    include/BufferViewVkImpl.hpp
+    include/CommandListVkImpl.hpp
+    include/CommandPoolManager.hpp
+    include/CommandQueueVkImpl.hpp
+    include/DescriptorPoolManager.hpp
+    include/DeviceContextVkImpl.hpp
+    include/FenceVkImpl.hpp
+    include/FramebufferVkImpl.hpp
+    include/VulkanDynamicHeap.hpp
+    include/FramebufferCache.hpp
+    include/GenerateMipsVkHelper.hpp
     include/pch.h
-    include/PipelineLayout.h
-    include/PipelineStateVkImpl.h
-    include/RenderDeviceVkImpl.h
-    include/RenderPassCache.h
-    include/SamplerVkImpl.h
-    include/ShaderVkImpl.h
-    include/ShaderResourceBindingVkImpl.h
-    include/ShaderResourceCacheVk.h
-    include/ShaderResourceLayoutVk.h
-    include/ShaderVariableVk.h
-    include/SwapChainVkImpl.h
-    include/TextureVkImpl.h
-    include/TextureViewVkImpl.h
-    include/VulkanErrors.h
-    include/VulkanTypeConversions.h
-    include/VulkanUploadHeap.h
+    include/PipelineLayout.hpp
+    include/PipelineStateVkImpl.hpp
+    include/QueryManagerVk.hpp
+    include/QueryVkImpl.hpp
+    include/RenderDeviceVkImpl.hpp
+    include/RenderPassVkImpl.hpp
+    include/RenderPassCache.hpp
+    include/SamplerVkImpl.hpp
+    include/ShaderVkImpl.hpp
+    include/ManagedVulkanObject.hpp
+    include/ShaderResourceBindingVkImpl.hpp
+    include/ShaderResourceCacheVk.hpp
+    include/ShaderResourceLayoutVk.hpp
+    include/ShaderVariableVk.hpp
+    include/SwapChainVkImpl.hpp
+    include/TextureVkImpl.hpp
+    include/TextureViewVkImpl.hpp
+    include/VulkanErrors.hpp
+    include/VulkanTypeConversions.hpp
+    include/VulkanUploadHeap.hpp
+    include/BottomLevelASVkImpl.hpp
+    include/TopLevelASVkImpl.hpp
+    include/ShaderBindingTableVkImpl.hpp
 )
 
 set(VULKAN_UTILS_INCLUDE 
-    include/VulkanUtilities/VulkanCommandBuffer.h
-    include/VulkanUtilities/VulkanCommandBufferPool.h
-    include/VulkanUtilities/VulkanDebug.h
-    include/VulkanUtilities/VulkanDescriptorPool.h
-    include/VulkanUtilities/VulkanFencePool.h
-    include/VulkanUtilities/VulkanInstance.h
-    include/VulkanUtilities/VulkanLogicalDevice.h
-    include/VulkanUtilities/VulkanMemoryManager.h
-    include/VulkanUtilities/VulkanObjectWrappers.h
-    include/VulkanUtilities/VulkanPhysicalDevice.h
+    include/VulkanUtilities/VulkanCommandBuffer.hpp
+    include/VulkanUtilities/VulkanCommandBufferPool.hpp
+    include/VulkanUtilities/VulkanDebug.hpp
+    include/VulkanUtilities/VulkanFencePool.hpp
+    include/VulkanUtilities/VulkanInstance.hpp
+    include/VulkanUtilities/VulkanLogicalDevice.hpp
+    include/VulkanUtilities/VulkanMemoryManager.hpp
+    include/VulkanUtilities/VulkanObjectWrappers.hpp
+    include/VulkanUtilities/VulkanPhysicalDevice.hpp
+    include/VulkanUtilities/VulkanHeaders.h
 )
 
 
@@ -52,16 +60,22 @@ set(INTERFACE
     interface/BufferViewVk.h
     interface/CommandQueueVk.h
     interface/DeviceContextVk.h
+    interface/EngineFactoryVk.h
     interface/FenceVk.h
+    interface/FramebufferVk.h
     interface/PipelineStateVk.h
+    interface/QueryVk.h
     interface/RenderDeviceVk.h
-    interface/RenderDeviceFactoryVk.h
+    interface/RenderPassVk.h
     interface/SamplerVk.h
     interface/ShaderVk.h
     interface/ShaderResourceBindingVk.h
     interface/SwapChainVk.h
     interface/TextureVk.h
     interface/TextureViewVk.h
+    interface/BottomLevelASVk.h
+    interface/TopLevelASVk.h
+    interface/ShaderBindingTableVk.h
 )
 
 
@@ -72,15 +86,19 @@ set(SRC
     src/CommandQueueVkImpl.cpp
     src/DescriptorPoolManager.cpp
     src/DeviceContextVkImpl.cpp
+    src/EngineFactoryVk.cpp
     src/FenceVkImpl.cpp
+    src/FramebufferVkImpl.cpp
     src/VulkanDynamicHeap.cpp
     src/FramebufferCache.cpp
     src/GenerateMipsVkHelper.cpp
     src/PipelineLayout.cpp
     src/PipelineStateVkImpl.cpp
+    src/QueryManagerVk.cpp
+    src/QueryVkImpl.cpp
     src/RenderDeviceVkImpl.cpp
+    src/RenderPassVkImpl.cpp
     src/RenderPassCache.cpp
-    src/RenderDeviceFactoryVk.cpp
     src/SamplerVkImpl.cpp
     src/ShaderVkImpl.cpp
     src/ShaderResourceBindingVkImpl.cpp
@@ -92,13 +110,15 @@ set(SRC
     src/TextureViewVkImpl.cpp
     src/VulkanTypeConversions.cpp
     src/VulkanUploadHeap.cpp
+    src/BottomLevelASVkImpl.cpp
+    src/TopLevelASVkImpl.cpp
+    src/ShaderBindingTableVkImpl.cpp
 )
 
 set(VULKAN_UTILS_SRC
     src/VulkanUtilities/VulkanCommandBuffer.cpp
     src/VulkanUtilities/VulkanCommandBufferPool.cpp
     src/VulkanUtilities/VulkanDebug.cpp
-    src/VulkanUtilities/VulkanDescriptorPool.cpp
     src/VulkanUtilities/VulkanFencePool.cpp
     src/VulkanUtilities/VulkanInstance.cpp
     src/VulkanUtilities/VulkanLogicalDevice.cpp
@@ -106,106 +126,259 @@ set(VULKAN_UTILS_SRC
     src/VulkanUtilities/VulkanPhysicalDevice.cpp
 )
 
-set(GENERATE_MIPS_SHADER
-    shaders/GenerateMipsCS.csh
-)
-set(GENERATE_MIPS_SHADER_INC
-    shaders/GenerateMipsCS_inc.h
-)
+set(GENERATE_MIPS_SHADER shaders/GenerateMipsCS.csh)
 
+# We must use the full path, otherwise the build system will not be able to properly detect
+# changes and shader conversion custom command will run every time
+set(GENERATE_MIPS_SHADER_INC ${CMAKE_CURRENT_SOURCE_DIR}/shaders/GenerateMipsCS_inc.h)
 set_source_files_properties(
-    ${CMAKE_CURRENT_SOURCE_DIR}/${GENERATE_MIPS_SHADER_INC}
+    ${GENERATE_MIPS_SHADER_INC}
     PROPERTIES GENERATED TRUE
 )
 
-# Create custom target to convert GenerateMipsCS.csh to GenerateMipsCS_inc.h
-add_custom_target(ProcessGenerateMipsVkShader
-SOURCES
-    ${GENERATE_MIPS_SHADER}
-)
-
-add_custom_command(TARGET ProcessGenerateMipsVkShader 
-                   # Unfortunately it is not possible to set TARGET directly to GraphicsEngineVk-*
-                   # because PRE_BUILD is only supported on Visual Studio 8 or later. For all other generators 
-                   # PRE_BUILD is treated as PRE_LINK.
-                   COMMAND ${FILE2STRING_PATH} ${GENERATE_MIPS_SHADER} ${GENERATE_MIPS_SHADER_INC}
+add_custom_command(OUTPUT ${GENERATE_MIPS_SHADER_INC} # We must use full path here!
+                   COMMAND ${FILE2STRING_PATH} ${GENERATE_MIPS_SHADER} shaders/GenerateMipsCS_inc.h
                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                    COMMENT "Processing GenerateMipsCS.csh"
+                   MAIN_DEPENDENCY ${GENERATE_MIPS_SHADER}
                    VERBATIM
 )
 
 
-add_library(GraphicsEngineVkInterface INTERFACE)
-target_include_directories(GraphicsEngineVkInterface
+add_library(Diligent-GraphicsEngineVkInterface INTERFACE)
+target_include_directories(Diligent-GraphicsEngineVkInterface
 INTERFACE
     interface
 )
-target_link_libraries(GraphicsEngineVkInterface 
+target_link_libraries(Diligent-GraphicsEngineVkInterface 
 INTERFACE 
-    GraphicsEngineInterface
+    Diligent-GraphicsEngineInterface
 )
 
-add_library(GraphicsEngineVk-static STATIC 
-    ${SRC} ${VULKAN_UTILS_SRC} ${INTERFACE} ${INCLUDE} ${VULKAN_UTILS_INCLUDE} ${GENERATE_MIPS_SHADER} ${GENERATE_MIPS_SHADER_INC}
+add_library(Diligent-GraphicsEngineVk-static STATIC 
+    ${SRC} ${VULKAN_UTILS_SRC} ${INTERFACE} ${INCLUDE} ${VULKAN_UTILS_INCLUDE} ${GENERATE_MIPS_SHADER}
+    
+    # A target created in the same directory (CMakeLists.txt file) that specifies any output of the 
+    # custom command as a source file is given a rule to generate the file using the command at build time. 
+    ${GENERATE_MIPS_SHADER_INC}
+
     readme.md
 )
 
-add_library(GraphicsEngineVk-shared SHARED 
-    ${SRC} ${VULKAN_UTILS_SRC} ${INTERFACE} ${INCLUDE} ${VULKAN_UTILS_INCLUDE} ${GENERATE_MIPS_SHADER} ${GENERATE_MIPS_SHADER_INC}
-    src/DLLMain.cpp
-    src/GraphicsEngineVk.def
+add_library(Diligent-GraphicsEngineVk-shared SHARED 
     readme.md
 )
 
-add_dependencies(GraphicsEngineVk-static ProcessGenerateMipsVkShader)
-add_dependencies(GraphicsEngineVk-shared ProcessGenerateMipsVkShader)
+if(MSVC)
+    target_sources(Diligent-GraphicsEngineVk-shared PRIVATE
+        src/DLLMain.cpp
+        src/GraphicsEngineVk.def
+    )
+endif()
 
-target_include_directories(GraphicsEngineVk-static 
+target_include_directories(Diligent-GraphicsEngineVk-static 
 PRIVATE
     include
-    ../../External/vulkan
-)
-
-target_include_directories(GraphicsEngineVk-shared 
-PRIVATE
-    include
-    ../../External/vulkan
+    ../../ThirdParty
+    ../../ThirdParty/Vulkan-Headers/include
 )
 
 set(PRIVATE_DEPENDENCIES 
-    BuildSettings 
-    Common 
-    TargetPlatform
-    GraphicsEngine
-    GLSLTools
+    Diligent-BuildSettings 
+    Diligent-Common 
+    Diligent-TargetPlatform
+    Diligent-GraphicsEngineNextGenBase
+    Diligent-ShaderTools
 )
 
+if (${DILIGENT_NO_HLSL})
+    message("HLSL support is disabled. Vulkan backend may not be able to consume SPIRV bytecode generated from HLSL.")
+else()
+    list(APPEND PRIVATE_DEPENDENCIES SPIRV-Tools-opt)
+endif()
+
+# Use DirectX shader compiler for SPIRV.
+# This is another implementation of DXC that can compile only to SPIRV.
+# DXC for D3D12 can compile only to DXIL.
 if(PLATFORM_WIN32)
-    find_library(Vulkan_LIBRARY NAMES vulkan-1 vulkan PATHS ../../External/vulkan/)    
+    # find Vulkan SDK
+    find_package(Vulkan)
+    if(Vulkan_FOUND)
+        get_filename_component(VulkanSDKPath ${Vulkan_LIBRARY} DIRECTORY)
+        set(VulkanSDKPath "${VulkanSDKPath}/..")
+        if(NOT EXISTS "${VulkanSDKPath}")
+            message(STATUS "can't get Vulkan SDK path")
+        endif()
+        if (${CMAKE_SIZEOF_VOID_P} EQUAL 8)
+            set(DXC_SPIRV_PATH "${VulkanSDKPath}/Bin/dxcompiler.dll")
+        else()
+            set(DXC_SPIRV_PATH "${VulkanSDKPath}/Bin32/dxcompiler.dll")
+        endif()
+    endif()
+    # Try to find Vulkan SDK from environment variable
+    if(NOT Vulkan_FOUND)
+        if(EXISTS "$ENV{VULKAN_SDK}")
+            if (${CMAKE_SIZEOF_VOID_P} EQUAL 8)
+                set(DXC_SPIRV_PATH "$ENV{VULKAN_SDK}/Bin/dxcompiler.dll")
+            else()
+                set(DXC_SPIRV_PATH "$ENV{VULKAN_SDK}/Bin32/dxcompiler.dll")
+            endif()
+        endif()
+    endif()
+elseif(PLATFORM_MACOS)
+    if(NOT VULKAN_SDK AND DEFINED ENV{VULKAN_SDK})
+        set(VULKAN_SDK $ENV{VULKAN_SDK})
+    endif()
+
+    if(VULKAN_SDK)
+        if(EXISTS "${VULKAN_SDK}/lib/libvulkan.dylib")
+            set(VULKAN_LIB_PATH ${VULKAN_SDK}/lib CACHE PATH "Vulkan library path" FORCE)
+        elseif(EXISTS "${VULKAN_SDK}/macOS/lib/libvulkan.dylib")
+            set(VULKAN_LIB_PATH ${VULKAN_SDK}/macOS/lib CACHE PATH "Vulkan library path" FORCE)
+        endif()
+
+        if(NOT VULKAN_LIB_PATH)
+            message(WARNING "Unable to find vulkan library at: " ${VULKAN_SDK})
+        endif()
+    endif()
+
+    if (VULKAN_LIB_PATH)
+        message("Using Vulkan library path: " ${VULKAN_LIB_PATH})
+    else()
+        message(WARNING "Vulkan library is not found. Executables may fail to start bcause the library may not be in rpath. Define VULKAN_SDK environment or CMake variable to specify the SDK path.")
+    endif()
+endif()
+
+if(PLATFORM_LINUX)
+    # VulkanSDK installs dxc to this path
+    set(DXC_SPIRV_PATH "/usr/lib/dxc/libdxcompiler.so")
+endif()
+
+if(EXISTS ${DXC_SPIRV_PATH})
+    set(DILIGENT_DXCOMPILER_FOR_SPIRV_PATH "${DXC_SPIRV_PATH}" CACHE INTERNAL "" FORCE)
+    message(STATUS "Found DXCompiler for Vulkan")
+else()
+    set(DILIGENT_DXCOMPILER_FOR_SPIRV_PATH "" CACHE INTERNAL "" FORCE)
+endif()
+
+if(PLATFORM_WIN32)
+    # Use Volk
+elseif(PLATFORM_MACOS)
+    # Use Volk
+elseif(PLATFORM_IOS)
+    # For the apparent lack of a better way, link with both arm64 and x64 libraries.
+    # The linker will issue a warning, but this will work for both device and the simulator.
+    list(APPEND PRIVATE_DEPENDENCIES
+        "${MoltenVK_FRAMEWORK}/ios-arm64/libMoltenVK.a"
+        "${MoltenVK_FRAMEWORK}/ios-x86_64-simulator/libMoltenVK.a"
+    )
+
+    find_library(CORE_GRAPHICS CoreGraphics)
+    find_library(METAL_LIBRARY Metal)
+    find_library(QUARTZ_CORE QuartzCore)
+    find_library(UI_KIT UIKit)
+    list(APPEND PRIVATE_DEPENDENCIES ${CORE_GRAPHICS} ${METAL_LIBRARY} ${QUARTZ_CORE} ${UI_KIT})
+elseif(PLATFORM_LINUX)
+    # Use Volk
+    list(APPEND PRIVATE_DEPENDENCIES dl)
+elseif(PLATFORM_ANDROID)
+    # Use Volk
+else()
+    find_library(Vulkan_LIBRARY NAMES vulkan)
     list(APPEND PRIVATE_DEPENDENCIES ${Vulkan_LIBRARY})
 endif()
 
 set(PUBLIC_DEPENDENCIES 
-    GraphicsEngineVkInterface
+    Diligent-GraphicsEngineVkInterface
 )
 
-target_link_libraries(GraphicsEngineVk-static PRIVATE ${PRIVATE_DEPENDENCIES} PUBLIC ${PUBLIC_DEPENDENCIES})
+target_link_libraries(Diligent-GraphicsEngineVk-static
+PRIVATE
+    ${PRIVATE_DEPENDENCIES}
+PUBLIC
+    ${PUBLIC_DEPENDENCIES}
+)
+target_link_libraries(Diligent-GraphicsEngineVk-shared
+PRIVATE
+    Diligent-BuildSettings
+    ${WHOLE_ARCHIVE_FLAG} Diligent-GraphicsEngineVk-static ${NO_WHOLE_ARCHIVE_FLAG}
+PUBLIC
+    ${PUBLIC_DEPENDENCIES}
+)
 
-target_link_libraries(GraphicsEngineVk-shared PRIVATE ${PRIVATE_DEPENDENCIES} PUBLIC ${PUBLIC_DEPENDENCIES})
-target_compile_definitions(GraphicsEngineVk-shared PUBLIC ENGINE_DLL=1)
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Disable the following clang warning
+    #    '<function name>' hides overloaded virtual function
+    # as hiding is intended
+    target_compile_options(Diligent-GraphicsEngineVk-static PRIVATE -Wno-overloaded-virtual)
+    target_compile_options(Diligent-GraphicsEngineVk-shared PRIVATE -Wno-overloaded-virtual)
 
+    # Disable the following warning:
+    #   moving a local object in a return statement prevents copy elision [-Wpessimizing-move]
+    set_source_files_properties(src/CommandPoolManager.cpp src/VulkanUtilities/VulkanDebug.cpp
+    PROPERTIES
+        COMPILE_FLAGS -Wno-pessimizing-move
+    )
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    set_target_properties(Diligent-GraphicsEngineVk-shared PROPERTIES
+        # Disallow missing direct and indirect dependencies to enssure that .so is self-contained
+        LINK_FLAGS "-Wl,--no-undefined -Wl,--no-allow-shlib-undefined"
+    )
+    if(PLATFORM_WIN32)
+        # MinGW
+        # Restrict export to GetEngineFactoryVk
+        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/export.map
+            "{ global: *GetEngineFactoryVk*; local: *; };"
+        )
+        # set_target_properties does not append link flags, but overwrites them
+        set_property(TARGET Diligent-GraphicsEngineVk-shared APPEND_STRING PROPERTY
+            LINK_FLAGS " -Wl,--version-script=export.map"
+        )
+    endif()
+endif()
 
 if(PLATFORM_WIN32)
-    set(PRIVATE_COMPILE_DEFINITIONS VK_USE_PLATFORM_WIN32_KHR=1 NOMINMAX)
+    set(PRIVATE_COMPILE_DEFINITIONS VK_USE_PLATFORM_WIN32_KHR=1 NOMINMAX DILIGENT_USE_VOLK=1)
+elseif(PLATFORM_LINUX)
+    set(PRIVATE_COMPILE_DEFINITIONS VK_USE_PLATFORM_XCB_KHR=1 VK_USE_PLATFORM_XLIB_KHR=1 DILIGENT_USE_VOLK=1)
+elseif(PLATFORM_MACOS)
+    set(PRIVATE_COMPILE_DEFINITIONS VK_USE_PLATFORM_MACOS_MVK=1 DILIGENT_USE_VOLK=1)
+elseif(PLATFORM_IOS)
+    set(PRIVATE_COMPILE_DEFINITIONS VK_USE_PLATFORM_IOS_MVK=1)
+elseif(PLATFORM_ANDROID)
+    set(PRIVATE_COMPILE_DEFINITIONS VK_USE_PLATFORM_ANDROID_KHR=1 DILIGENT_USE_VOLK=1)
+else()
+    message(FATAL_ERROR "Unknown platform")
 endif()
-target_compile_definitions(GraphicsEngineVk-shared PRIVATE ${PRIVATE_COMPILE_DEFINITIONS})
-target_compile_definitions(GraphicsEngineVk-static PRIVATE ${PRIVATE_COMPILE_DEFINITIONS})
 
-# Set output name to GraphicsEngineVk_{32|64}{r|d}
-set_dll_output_name(GraphicsEngineVk-shared GraphicsEngineVk)
+if (${DILIGENT_NO_GLSLANG})
+    message("GLSLang is not being built. Vulkan backend will only be able to consume SPIRV byte code.")
+endif()
 
-set_common_target_properties(GraphicsEngineVk-shared)
-set_common_target_properties(GraphicsEngineVk-static)
+target_compile_definitions(Diligent-GraphicsEngineVk-static
+PRIVATE
+    ${PRIVATE_COMPILE_DEFINITIONS}
+    DILIGENT_NO_GLSLANG=$<BOOL:${DILIGENT_NO_GLSLANG}>
+    DILIGENT_NO_HLSL=$<BOOL:${DILIGENT_NO_HLSL}>
+)
+target_compile_definitions(Diligent-GraphicsEngineVk-shared PRIVATE ${PRIVATE_COMPILE_DEFINITIONS} ENGINE_DLL=1)
+
+if(PLATFORM_WIN32)
+
+    # Do not add 'lib' prefix when building with MinGW
+    set_target_properties(Diligent-GraphicsEngineVk-shared PROPERTIES PREFIX "")
+
+    # Set output name to GraphicsEngineVk_{32|64}{r|d}
+    set_dll_output_name(Diligent-GraphicsEngineVk-shared GraphicsEngineVk)
+
+else()
+    set_target_properties(Diligent-GraphicsEngineVk-shared PROPERTIES
+        OUTPUT_NAME GraphicsEngineVk
+    )
+endif()
+
+set_common_target_properties(Diligent-GraphicsEngineVk-shared)
+set_common_target_properties(Diligent-GraphicsEngineVk-static)
 
 source_group("src" FILES ${SRC})
 source_group("src\\Vulkan Utilities" FILES ${VULKAN_UTILS_SRC})
@@ -225,17 +398,18 @@ source_group("shaders\\generated" FILES
     ${GENERATE_MIPS_SHADER_INC}
 )
 
-set_target_properties(GraphicsEngineVk-static PROPERTIES
-    FOLDER Core/Graphics
+set_target_properties(Diligent-GraphicsEngineVk-static PROPERTIES
+    FOLDER DiligentCore/Graphics
 )
-set_target_properties(GraphicsEngineVk-shared PROPERTIES
-    FOLDER Core/Graphics
+set_target_properties(Diligent-GraphicsEngineVk-shared PROPERTIES
+    FOLDER DiligentCore/Graphics
 )
 
 set_source_files_properties(
     readme.md PROPERTIES HEADER_FILE_ONLY TRUE
 )
 
-set_target_properties(ProcessGenerateMipsVkShader PROPERTIES
-    FOLDER Core/Graphics/Helper
-)
+if(DILIGENT_INSTALL_CORE)
+    install_core_lib(Diligent-GraphicsEngineVk-shared)
+    install_core_lib(Diligent-GraphicsEngineVk-static)
+endif()

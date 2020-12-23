@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -29,29 +33,58 @@
 #include "Object.h"
 #include "DataBlob.h"
 
-namespace Diligent
-{
+DILIGENT_BEGIN_NAMESPACE(Diligent)
 
 /// IFileStream interface unique identifier
 // {E67F386C-6A5A-4A24-A0CE-C66435465D41}
-static constexpr INTERFACE_ID IID_FileStream = 
-{ 0xe67f386c, 0x6a5a, 0x4a24, { 0xa0, 0xce, 0xc6, 0x64, 0x35, 0x46, 0x5d, 0x41 } };
+static const struct INTERFACE_ID IID_FileStream =
+    {0xe67f386c, 0x6a5a, 0x4a24, {0xa0, 0xce, 0xc6, 0x64, 0x35, 0x46, 0x5d, 0x41}};
+
+// clang-format off
+
+#define DILIGENT_INTERFACE_NAME IFileStream
+#include "DefineInterfaceHelperMacros.h"
+
+#define IFileStreamInclusiveMethods \
+    IObjectInclusiveMethods;        \
+    IFileStreamMethods FileStream
 
 /// Base interface for a file stream
-class IFileStream : public IObject
+DILIGENT_BEGIN_INTERFACE(IFileStream, IObject)
 {
-public:
     /// Reads data from the stream
-    virtual bool Read( void *Data, size_t BufferSize ) = 0;
+    VIRTUAL bool METHOD(Read)(THIS_
+                              void*  Data,
+                              size_t BufferSize) PURE;
 
-    virtual void Read( IDataBlob *pData ) = 0;
+    VIRTUAL void METHOD(ReadBlob)(THIS_
+                                  IDataBlob* pData) PURE;
 
     /// Writes data to the stream
-    virtual bool Write( const void *Data, size_t Size ) = 0;
-    
-    virtual size_t GetSize() = 0;
+    VIRTUAL bool METHOD(Write)(THIS_
+                               const void* Data, 
+                               size_t      Size) PURE;
 
-    virtual bool IsValid() = 0;
+    VIRTUAL size_t METHOD(GetSize)(THIS) PURE;
+
+    VIRTUAL bool METHOD(IsValid)(THIS) PURE;
 };
+DILIGENT_END_INTERFACE
 
-}
+#include "UndefInterfaceHelperMacros.h"
+
+#if DILIGENT_C_INTERFACE
+
+// clang-format off
+
+#    define IFileStream_Read(This, ...)     CALL_IFACE_METHOD(FileStream, Read,     This, __VA_ARGS__)
+#    define IFileStream_ReadBlob(This, ...) CALL_IFACE_METHOD(FileStream, ReadBlob, This, __VA_ARGS__)
+#    define IFileStream_Write(This, ...)    CALL_IFACE_METHOD(FileStream, Write,    This, __VA_ARGS__)
+#    define IFileStream_GetSize(This)       CALL_IFACE_METHOD(FileStream, GetSize,  This)
+#    define IFileStream_IsValid(This)       CALL_IFACE_METHOD(FileStream, IsValid,  This)
+
+// clang-format on
+
+#endif
+
+DILIGENT_END_NAMESPACE // namespace Diligent

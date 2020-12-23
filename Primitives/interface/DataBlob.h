@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -28,26 +32,53 @@
 
 #include "Object.h"
 
-namespace Diligent
-{
+DILIGENT_BEGIN_NAMESPACE(Diligent)
+
 
 // {F578FF0D-ABD2-4514-9D32-7CB454D4A73B}
-static constexpr INTERFACE_ID IID_DataBlob = 
-{ 0xf578ff0d, 0xabd2, 0x4514, { 0x9d, 0x32, 0x7c, 0xb4, 0x54, 0xd4, 0xa7, 0x3b } };
+static const struct INTERFACE_ID IID_DataBlob =
+    {0xf578ff0d, 0xabd2, 0x4514, {0x9d, 0x32, 0x7c, 0xb4, 0x54, 0xd4, 0xa7, 0x3b}};
+
+// clang-format off
+
+#define DILIGENT_INTERFACE_NAME IDataBlob
+#include "DefineInterfaceHelperMacros.h"
+
+#define IDataBlobInclusiveMethods \
+    IObjectInclusiveMethods;      \
+    IDataBlobMethods DataBlob
 
 /// Base interface for a file stream
-class IDataBlob : public IObject
+DILIGENT_BEGIN_INTERFACE(IDataBlob, IObject)
 {
-public:
-    
     /// Sets the size of the internal data buffer
-    virtual void Resize( size_t NewSize ) = 0;
+    VIRTUAL void METHOD(Resize)(THIS_
+                                size_t NewSize) PURE;
 
     /// Returns the size of the internal data buffer
-    virtual size_t GetSize() = 0;
+    VIRTUAL size_t METHOD(GetSize)(THIS) CONST PURE;
 
     /// Returns the pointer to the internal data buffer
-    virtual void* GetDataPtr() = 0;
-};
+    VIRTUAL void* METHOD(GetDataPtr)(THIS) PURE;
 
-}
+    /// Returns const pointer to the internal data buffer
+    VIRTUAL const void* METHOD(GetConstDataPtr)(THIS) CONST PURE;
+};
+DILIGENT_END_INTERFACE
+
+#include "UndefInterfaceHelperMacros.h"
+
+#if DILIGENT_C_INTERFACE
+
+// clang-format off
+
+#    define IDataBlob_Resize(This, ...)      CALL_IFACE_METHOD(DataBlob, Resize,          This, __VA_ARGS__)
+#    define IDataBlob_GetSize(This)          CALL_IFACE_METHOD(DataBlob, GetSize,         This)
+#    define IDataBlob_GetDataPtr(This)       CALL_IFACE_METHOD(DataBlob, GetDataPtr,      This)
+#    define IDataBlob_GetConstDataPtr(This)  CALL_IFACE_METHOD(DataBlob, GetConstDataPtr, This)
+
+// clang-format on
+
+#endif
+
+DILIGENT_END_NAMESPACE // namespace Diligent

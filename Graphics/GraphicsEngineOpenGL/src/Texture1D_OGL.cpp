@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -23,28 +27,42 @@
 
 #include "pch.h"
 
-#include "Texture1D_OGL.h"
-#include "RenderDeviceGLImpl.h"
-#include "DeviceContextGLImpl.h"
-#include "GLTypeConversions.h"
-#include "BufferGLImpl.h"
+#include "Texture1D_OGL.hpp"
+#include "RenderDeviceGLImpl.hpp"
+#include "DeviceContextGLImpl.hpp"
+#include "GLTypeConversions.hpp"
+#include "BufferGLImpl.hpp"
 
 namespace Diligent
 {
 
-Texture1D_OGL::Texture1D_OGL( IReferenceCounters *pRefCounters, 
-                              FixedBlockMemoryAllocator& TexViewObjAllocator,     
-                              RenderDeviceGLImpl *pDeviceGL, 
-                              DeviceContextGLImpl *pDeviceContext, 
-                              const TextureDesc& TexDesc, 
-                              const TextureData &InitData /*= TextureData()*/, 
-							  bool bIsDeviceInternal /*= false*/) : 
-    TextureBaseGL(pRefCounters, TexViewObjAllocator, pDeviceGL, TexDesc, GL_TEXTURE_1D, InitData, bIsDeviceInternal)
+Texture1D_OGL::Texture1D_OGL(IReferenceCounters*        pRefCounters,
+                             FixedBlockMemoryAllocator& TexViewObjAllocator,
+                             RenderDeviceGLImpl*        pDeviceGL,
+                             GLContextState&            GLState,
+                             const TextureDesc&         TexDesc,
+                             const TextureData*         pInitData /*= nullptr*/,
+                             bool                       bIsDeviceInternal /*= false*/) :
+    // clang-format off
+    TextureBaseGL
+    {
+        pRefCounters,
+        TexViewObjAllocator,
+        pDeviceGL,
+        TexDesc,
+        GL_TEXTURE_1D,
+        pInitData,
+        bIsDeviceInternal
+    }
+// clang-format on
 {
-    auto *pDeviceContextGL = ValidatedCast<DeviceContextGLImpl>(pDeviceContext);
-    auto &ContextState = pDeviceContextGL->GetContextState();
-    
-    ContextState.BindTexture(-1, m_BindTarget, m_GlTexture);
+    if (TexDesc.Usage == USAGE_STAGING)
+    {
+        // We will use PBO initialized by TextureBaseGL
+        return;
+    }
+
+    GLState.BindTexture(-1, m_BindTarget, m_GlTexture);
 
     //                             levels             format          width
     glTexStorage1D(m_BindTarget, m_Desc.MipLevels, m_GLTexFormat, m_Desc.Width);
@@ -58,38 +76,51 @@ Texture1D_OGL::Texture1D_OGL( IReferenceCounters *pRefCounters,
 
     SetDefaultGLParameters();
 
-    if( InitData.pSubResources )
+    if (pInitData != nullptr && pInitData->pSubResources != nullptr)
     {
-        if(  m_Desc.MipLevels == InitData.NumSubresources )
+        if (m_Desc.MipLevels == pInitData->NumSubresources)
         {
-            for(Uint32 Mip = 0; Mip < m_Desc.MipLevels; ++Mip)
+            for (Uint32 Mip = 0; Mip < m_Desc.MipLevels; ++Mip)
             {
-                Box DstBox(0, std::max(m_Desc.Width>>Mip, 1U),
-                            0, 1);
+                Box DstBox{0, std::max(m_Desc.Width >> Mip, 1U),
+                           0, 1};
                 // UpdateData() is a virtual function. If we try to call it through vtbl from here,
                 // we will get into TextureBaseGL::UpdateData(), because instance of Texture1D_OGL
                 // is not fully constructed yet.
-                // To call the required function, we need to explicitly specify the class: 
-                Texture1D_OGL::UpdateData( pDeviceContext, Mip, 0, DstBox, InitData.pSubResources[Mip] );
+                // To call the required function, we need to explicitly specify the class:
+                Texture1D_OGL::UpdateData(GLState, Mip, 0, DstBox, pInitData->pSubResources[Mip]);
             }
         }
         else
         {
-            UNEXPECTED( "Incorrect number of subresources" );
+            UNEXPECTED("Incorrect number of subresources");
         }
     }
 
-    ContextState.BindTexture(-1, m_BindTarget, GLObjectWrappers::GLTextureObj(false) );
+    GLState.BindTexture(-1, m_BindTarget, GLObjectWrappers::GLTextureObj::Null());
 }
 
-Texture1D_OGL::Texture1D_OGL( IReferenceCounters *pRefCounters, 
-                              FixedBlockMemoryAllocator& TexViewObjAllocator,     
-                              RenderDeviceGLImpl *pDeviceGL, 
-                              DeviceContextGLImpl *pDeviceContext,
-                              const TextureDesc& TexDesc,
-                              GLuint GLTextureHandle,
-                              bool bIsDeviceInternal)  : 
-    TextureBaseGL(pRefCounters, TexViewObjAllocator, pDeviceGL, pDeviceContext, TexDesc, GLTextureHandle, GL_TEXTURE_1D, bIsDeviceInternal)
+Texture1D_OGL::Texture1D_OGL(IReferenceCounters*        pRefCounters,
+                             FixedBlockMemoryAllocator& TexViewObjAllocator,
+                             RenderDeviceGLImpl*        pDeviceGL,
+                             GLContextState&            GLState,
+                             const TextureDesc&         TexDesc,
+                             GLuint                     GLTextureHandle,
+                             GLuint                     GLBindTarget,
+                             bool                       bIsDeviceInternal) :
+    // clang-format off
+    TextureBaseGL
+    {
+        pRefCounters,
+        TexViewObjAllocator,
+        pDeviceGL,
+        GLState,
+        TexDesc,
+        GLTextureHandle,
+        static_cast<GLenum>(GLBindTarget != 0 ? GLBindTarget : GL_TEXTURE_1D),
+        bIsDeviceInternal
+    }
+// clang-format on
 {
 }
 
@@ -97,19 +128,22 @@ Texture1D_OGL::~Texture1D_OGL()
 {
 }
 
-void Texture1D_OGL::UpdateData( IDeviceContext *pContext, Uint32 MipLevel, Uint32 Slice, const Box &DstBox, const TextureSubResData &SubresData )
+void Texture1D_OGL::UpdateData(GLContextState&          ContextState,
+                               Uint32                   MipLevel,
+                               Uint32                   Slice,
+                               const Box&               DstBox,
+                               const TextureSubResData& SubresData)
 {
-    auto &ContextState = ValidatedCast<DeviceContextGLImpl>(pContext)->GetContextState();
-    TextureBaseGL::UpdateData(ContextState, pContext, MipLevel, Slice, DstBox, SubresData);
+    TextureBaseGL::UpdateData(ContextState, MipLevel, Slice, DstBox, SubresData);
 
-    ContextState.BindTexture( -1, m_BindTarget, m_GlTexture );
+    ContextState.BindTexture(-1, m_BindTarget, m_GlTexture);
 
     // Bind buffer if it is provided; copy from CPU memory otherwise
     GLuint UnpackBuffer = 0;
     if (SubresData.pSrcBuffer != nullptr)
     {
-        auto *pBufferGL = ValidatedCast<BufferGLImpl>(SubresData.pSrcBuffer);
-        UnpackBuffer = pBufferGL->GetGLHandle();
+        auto* pBufferGL = ValidatedCast<BufferGLImpl>(SubresData.pSrcBuffer);
+        UnpackBuffer    = pBufferGL->GetGLHandle();
     }
 
     // Transfers to OpenGL memory are called unpack operations
@@ -117,33 +151,36 @@ void Texture1D_OGL::UpdateData( IDeviceContext *pContext, Uint32 MipLevel, Uint3
     // operations will be performed from this buffer.
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, UnpackBuffer);
 
-    const auto &TransferAttribs = GetNativePixelTransferAttribs(m_Desc.Format);
-    
+    const auto& TransferAttribs = GetNativePixelTransferAttribs(m_Desc.Format);
+
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
-    glPixelStorei(GL_UNPACK_SKIP_ROWS, 0 );
+    glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
 
     glTexSubImage1D(m_BindTarget, MipLevel,
-                    DstBox.MinX, 
+                    DstBox.MinX,
                     DstBox.MaxX - DstBox.MinX,
-                    TransferAttribs.PixelFormat, TransferAttribs.DataType, 
-                    SubresData.pData);
+                    TransferAttribs.PixelFormat, TransferAttribs.DataType,
+                    // If a non-zero named buffer object is bound to the GL_PIXEL_UNPACK_BUFFER target, 'data' is treated
+                    // as a byte offset into the buffer object's data store.
+                    // https://www.khronos.org/registry/OpenGL-Refpages/gl2.1/xhtml/glTexSubImage1D.xml
+                    SubresData.pSrcBuffer != nullptr ? reinterpret_cast<void*>(static_cast<size_t>(SubresData.SrcOffset)) : SubresData.pData);
     CHECK_GL_ERROR("Failed to update subimage data");
 
-    if(UnpackBuffer != 0)
+    if (UnpackBuffer != 0)
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
-    ContextState.BindTexture( -1, m_BindTarget, GLObjectWrappers::GLTextureObj(false) );
+    ContextState.BindTexture(-1, m_BindTarget, GLObjectWrappers::GLTextureObj::Null());
 }
 
-void Texture1D_OGL::AttachToFramebuffer( const TextureViewDesc& ViewDesc, GLenum AttachmentPoint )
+void Texture1D_OGL::AttachToFramebuffer(const TextureViewDesc& ViewDesc, GLenum AttachmentPoint)
 {
     // For glFramebufferTexture1D(), if texture name is not zero, then texture target must be GL_TEXTURE_1D
-    glFramebufferTexture1D( GL_DRAW_FRAMEBUFFER, AttachmentPoint, m_BindTarget, m_GlTexture, ViewDesc.MostDetailedMip );
-    CHECK_GL_ERROR( "Failed to attach texture 1D to draw framebuffer" );
-    glFramebufferTexture1D( GL_READ_FRAMEBUFFER, AttachmentPoint, m_BindTarget, m_GlTexture, ViewDesc.MostDetailedMip );
-    CHECK_GL_ERROR( "Failed to attach texture 1D to read framebuffer" );
+    glFramebufferTexture1D(GL_DRAW_FRAMEBUFFER, AttachmentPoint, m_BindTarget, m_GlTexture, ViewDesc.MostDetailedMip);
+    CHECK_GL_ERROR("Failed to attach texture 1D to draw framebuffer");
+    glFramebufferTexture1D(GL_READ_FRAMEBUFFER, AttachmentPoint, m_BindTarget, m_GlTexture, ViewDesc.MostDetailedMip);
+    CHECK_GL_ERROR("Failed to attach texture 1D to read framebuffer");
 }
 
-}
+} // namespace Diligent

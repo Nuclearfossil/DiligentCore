@@ -1,40 +1,50 @@
 cmake_minimum_required (VERSION 3.6)
 
-project(GraphicsAccessories CXX)
+project(Diligent-GraphicsAccessories CXX)
 
 set(INTERFACE 
-    interface/GraphicsAccessories.h
-    interface/ResourceReleaseQueue.h
-    interface/RingBuffer.h
-    interface/SRBMemoryAllocator.h
-    interface/VariableSizeAllocationsManager.h
-    interface/VariableSizeGPUAllocationsManager.h
+    interface/ColorConversion.h
+    interface/GraphicsAccessories.hpp
+    interface/GraphicsTypesOutputInserters.hpp
+    interface/DynamicAtlasManager.hpp
+    interface/ResourceReleaseQueue.hpp
+    interface/RingBuffer.hpp
+    interface/SRBMemoryAllocator.hpp
+    interface/VariableSizeAllocationsManager.hpp
+    interface/VariableSizeGPUAllocationsManager.hpp
 )
 
-set(SOURCE 
+set(SOURCE
+    src/ColorConversion.cpp
+    src/DynamicAtlasManager.cpp
     src/SRBMemoryAllocator.cpp
     src/GraphicsAccessories.cpp
 )
 
-add_library(GraphicsAccessories STATIC ${SOURCE} ${INTERFACE})
+add_library(Diligent-GraphicsAccessories STATIC ${SOURCE} ${INTERFACE})
 
-target_include_directories(GraphicsAccessories 
+target_include_directories(Diligent-GraphicsAccessories 
 PUBLIC
     interface
 )
 
-target_link_libraries(GraphicsAccessories 
+target_link_libraries(Diligent-GraphicsAccessories 
+PRIVATE
+    Diligent-BuildSettings
 PUBLIC
-    BuildSettings
-    Common 
-    GraphicsEngineInterface
+    Diligent-Common 
+    Diligent-GraphicsEngineInterface
 )
 
-set_common_target_properties(GraphicsAccessories)
+set_common_target_properties(Diligent-GraphicsAccessories)
 
 source_group("src" FILES ${SOURCE})
 source_group("interface" FILES ${INTERFACE})
 
-set_target_properties(GraphicsAccessories PROPERTIES
-    FOLDER Core/Graphics
+set_target_properties(Diligent-GraphicsAccessories PROPERTIES
+    FOLDER DiligentCore/Graphics
 )
+
+if(DILIGENT_INSTALL_CORE)
+    install_core_lib(Diligent-GraphicsAccessories)
+endif()

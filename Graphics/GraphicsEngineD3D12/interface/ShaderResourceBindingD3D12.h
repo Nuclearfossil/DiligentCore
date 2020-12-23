@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -28,18 +32,43 @@
 
 #include "../../GraphicsEngine/interface/ShaderResourceBinding.h"
 
-namespace Diligent
-{
+DILIGENT_BEGIN_NAMESPACE(Diligent)
 
 // {70DD5C7C-81FA-4D9A-942F-D1B91423FAAC}
-static constexpr INTERFACE_ID IID_ShaderResourceBindingD3D12 =
-{ 0x70dd5c7c, 0x81fa, 0x4d9a, { 0x94, 0x2f, 0xd1, 0xb9, 0x14, 0x23, 0xfa, 0xac } };
+static const INTERFACE_ID IID_ShaderResourceBindingD3D12 =
+    {0x70dd5c7c, 0x81fa, 0x4d9a, {0x94, 0x2f, 0xd1, 0xb9, 0x14, 0x23, 0xfa, 0xac}};
 
-/// Shader resource binding interface
-class IShaderResourceBindingD3D12 : public IShaderResourceBinding
+#define DILIGENT_INTERFACE_NAME IShaderResourceBindingD3D12
+#include "../../../Primitives/interface/DefineInterfaceHelperMacros.h"
+
+// clang-format off
+#define IShaderResourceBindingD3D12InclusiveMethods \
+    IShaderResourceBindingInclusiveMethods          \
+    /*IShaderResourceBindingD3D12Methods ShaderResourceBindingD3D12*/
+// clang-format on
+
+#if DILIGENT_CPP_INTERFACE
+
+/// Exposes Direct3D12-specific functionality of a shader resource binding.
+DILIGENT_BEGIN_INTERFACE(IShaderResourceBindingD3D12, IShaderResourceBinding){};
+DILIGENT_END_INTERFACE
+
+#endif
+
+#include "../../../Primitives/interface/UndefInterfaceHelperMacros.h"
+
+#if DILIGENT_C_INTERFACE
+
+struct IShaderResourceBindingD3D12Vtbl
 {
-public:
-
+    IShaderResourceBindingD3D12InclusiveMethods;
 };
 
-}
+typedef struct IShaderResourceBindingD3D12
+{
+    struct IShaderResourceBindingD3D12Vtbl* pVtbl;
+} IShaderResourceBindingD3D12;
+
+#endif
+
+DILIGENT_END_NAMESPACE // namespace Diligent

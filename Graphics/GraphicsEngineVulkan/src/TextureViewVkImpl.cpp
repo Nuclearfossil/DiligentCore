@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -22,43 +26,48 @@
  */
 
 #include "pch.h"
-#include "TextureViewVkImpl.h"
-#include "DeviceContextVkImpl.h"
-#include "RenderDeviceVkImpl.h"
+#include "TextureViewVkImpl.hpp"
+#include "DeviceContextVkImpl.hpp"
+#include "RenderDeviceVkImpl.hpp"
 
 namespace Diligent
 {
 
-TextureViewVkImpl::TextureViewVkImpl( IReferenceCounters*                 pRefCounters,
-                                      RenderDeviceVkImpl*                 pDevice, 
-                                      const TextureViewDesc&              ViewDesc, 
-                                      ITexture*                           pTexture,
-                                      VulkanUtilities::ImageViewWrapper&& ImgView,
-                                      bool bIsDefaultView ) :
-    TTextureViewBase( pRefCounters, pDevice, ViewDesc, pTexture, bIsDefaultView ),
-    m_ImageView(std::move(ImgView))
+TextureViewVkImpl::TextureViewVkImpl(IReferenceCounters*                 pRefCounters,
+                                     RenderDeviceVkImpl*                 pDevice,
+                                     const TextureViewDesc&              ViewDesc,
+                                     ITexture*                           pTexture,
+                                     VulkanUtilities::ImageViewWrapper&& ImgView,
+                                     bool                                bIsDefaultView) :
+    // clang-format off
+    TTextureViewBase
+    {
+        pRefCounters,
+        pDevice,
+        ViewDesc,
+        pTexture,
+        bIsDefaultView
+    },
+    m_ImageView{std::move(ImgView)}
+// clang-format on
 {
 }
 
 TextureViewVkImpl::~TextureViewVkImpl()
 {
-    if(m_Desc.ViewType == TEXTURE_VIEW_DEPTH_STENCIL || m_Desc.ViewType == TEXTURE_VIEW_RENDER_TARGET)
-        m_pDevice->GetFramebufferCache().OnDestroyImageView(m_ImageView);
-    m_pDevice->SafeReleaseVkObject(std::move(m_ImageView));
-}
-
-IMPLEMENT_QUERY_INTERFACE( TextureViewVkImpl, IID_TextureViewVk, TTextureViewBase )
-
-void TextureViewVkImpl::GenerateMips( IDeviceContext *pContext )
-{
-    VERIFY( m_Desc.ViewType == TEXTURE_VIEW_SHADER_RESOURCE, "GenerateMips() is allowed for shader resource views only, ", GetTexViewTypeLiteralName(m_Desc.ViewType), " is not allowed." );
-    if( m_Desc.ViewType != TEXTURE_VIEW_SHADER_RESOURCE )
+    if (m_MipLevelViews != nullptr)
     {
-        LOG_ERROR("GenerateMips() is allowed for shader resource views only, ", GetTexViewTypeLiteralName(m_Desc.ViewType), " is not allowed.");
-        return;
+        for (Uint32 MipView = 0; MipView < m_Desc.NumMipLevels * 2; ++MipView)
+        {
+            m_MipLevelViews[MipView].~MipLevelViewAutoPtrType();
+        }
+        // Memory allocated in TextureVkImpl::CreateViewInternal()
+        GetRawAllocator().Free(m_MipLevelViews);
     }
-    auto* pDeviceCtxVk = ValidatedCast<DeviceContextVkImpl>( pContext );
-    pDeviceCtxVk->GenerateMips(*this);
+
+    if (m_Desc.ViewType == TEXTURE_VIEW_DEPTH_STENCIL || m_Desc.ViewType == TEXTURE_VIEW_RENDER_TARGET)
+        m_pDevice->GetFramebufferCache().OnDestroyImageView(m_ImageView);
+    m_pDevice->SafeReleaseDeviceObject(std::move(m_ImageView), m_pTexture->GetDesc().CommandQueueMask);
 }
 
-}
+} // namespace Diligent

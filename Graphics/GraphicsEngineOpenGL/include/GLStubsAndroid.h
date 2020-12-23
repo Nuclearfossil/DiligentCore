@@ -23,7 +23,13 @@
 
 #pragma once
 
-#include "Errors.h"
+#include "Errors.hpp"
+
+// clang-format off
+
+#ifndef GLAPIENTRY
+#   define GLAPIENTRY GL_APIENTRY
+#endif
 
 // Define unsupported formats for OpenGL ES
 #ifndef GL_RGBA16
@@ -331,6 +337,10 @@
 
 #ifndef GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY
     #define GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY 0x910D
+#endif
+
+#ifndef GL_SAMPLER_EXTERNAL_OES
+    #define GL_SAMPLER_EXTERNAL_OES 0x8D66
 #endif
 
 
@@ -916,6 +926,111 @@ extern PFNGLMEMORYBARRIERPROC glMemoryBarrier;
 #endif
 
 
+/* ------------------------------ GL_KHR_debug ----------------------------- */
+#ifndef GL_KHR_debug
+#   define GL_KHR_debug 1
+#endif
+
+#ifndef GL_DEBUG_OUTPUT
+#   define GL_DEBUG_OUTPUT 0x92E0
+#endif
+
+#ifndef GL_DEBUG_OUTPUT_SYNCHRONOUS
+#   define GL_DEBUG_OUTPUT_SYNCHRONOUS 0x8242
+#endif
+
+#ifndef GL_DEBUG_SOURCE_API
+#   define GL_DEBUG_SOURCE_API 0x8246
+#endif
+
+#ifndef GL_DEBUG_SOURCE_WINDOW_SYSTEM
+#   define GL_DEBUG_SOURCE_WINDOW_SYSTEM 0x8247
+#endif
+
+#ifndef GL_DEBUG_SOURCE_SHADER_COMPILER
+#   define GL_DEBUG_SOURCE_SHADER_COMPILER 0x8248
+#endif
+
+#ifndef GL_DEBUG_SOURCE_THIRD_PARTY
+#   define GL_DEBUG_SOURCE_THIRD_PARTY 0x8249
+#endif
+
+#ifndef GL_DEBUG_SOURCE_APPLICATION
+#   define GL_DEBUG_SOURCE_APPLICATION 0x824A
+#endif
+
+#ifndef GL_DEBUG_SOURCE_OTHER
+#   define GL_DEBUG_SOURCE_OTHER 0x824B
+#endif
+
+
+
+#ifndef GL_DEBUG_TYPE_ERROR
+#   define GL_DEBUG_TYPE_ERROR 0x824C
+#endif
+
+#ifndef GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR
+#   define GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR 0x824D
+#endif
+
+#ifndef GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR
+#   define GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR 0x824E
+#endif
+
+#ifndef GL_DEBUG_TYPE_PORTABILITY
+#   define GL_DEBUG_TYPE_PORTABILITY 0x824F
+#endif
+
+#ifndef GL_DEBUG_TYPE_PERFORMANCE
+#   define GL_DEBUG_TYPE_PERFORMANCE 0x8250
+#endif
+
+#ifndef GL_DEBUG_TYPE_MARKER
+#   define GL_DEBUG_TYPE_MARKER 0x8268
+#endif
+
+#ifndef GL_DEBUG_TYPE_PUSH_GROUP
+#   define GL_DEBUG_TYPE_PUSH_GROUP 0x8269
+#endif
+
+#ifndef GL_DEBUG_TYPE_POP_GROUP
+#   define GL_DEBUG_TYPE_POP_GROUP 0x826A
+#endif
+
+#ifndef GL_DEBUG_TYPE_OTHER
+#   define GL_DEBUG_TYPE_OTHER 0x8251
+#endif
+
+
+
+#ifndef GL_DEBUG_SEVERITY_HIGH
+#   define GL_DEBUG_SEVERITY_HIGH 0x9146
+#endif
+
+#ifndef GL_DEBUG_SEVERITY_MEDIUM
+#   define GL_DEBUG_SEVERITY_MEDIUM 0x9147
+#endif
+
+#ifndef GL_DEBUG_SEVERITY_LOW
+#   define GL_DEBUG_SEVERITY_LOW 0x9148
+#endif
+
+#ifndef GL_DEBUG_SEVERITY_NOTIFICATION
+#   define GL_DEBUG_SEVERITY_NOTIFICATION 0x826B
+#endif
+
+
+/* ------------------------------ GL_EXT_disjoint_timer_query ----------------------------- */
+#ifndef GL_TIMESTAMP
+#   define GL_TIMESTAMP 0x8E28
+#endif
+
+#ifndef GL_TIME_ELAPSED
+#   define GL_TIME_ELAPSED 0x88BF
+#endif
+
+
+
 // Define unsupported GL function stubs
 template<typename T>
 void UnsupportedGLFunctionStub( const T &Name )
@@ -923,15 +1038,8 @@ void UnsupportedGLFunctionStub( const T &Name )
     LOG_ERROR_MESSAGE( Name, "() is not supported in this API!\n" );
 }
 
-#define glDrawElementsInstancedBaseVertexBaseInstance(...) UnsupportedGLFunctionStub("glDrawElementsInstancedBaseVertexBaseInstance")
-#define glDrawElementsInstancedBaseVertex(...) UnsupportedGLFunctionStub("glDrawElementsInstancedBaseVertex")
-#define glDrawElementsInstancedBaseInstance(...) UnsupportedGLFunctionStub("glDrawElementsInstancedBaseInstance")
-#define glDrawArraysInstancedBaseInstance(...) UnsupportedGLFunctionStub("glDrawArraysInstancedBaseInstance")
-#define glDrawElementsBaseVertex(...) UnsupportedGLFunctionStub("glDrawElementsBaseVertex")
-#define glTextureView(...) UnsupportedGLFunctionStub("glTextureView")
 #define glTexStorage1D(...) UnsupportedGLFunctionStub("glTexStorage1D")
 #define glTexSubImage1D(...) UnsupportedGLFunctionStub("glTexSubImage1D")
-#define glTexStorage3DMultisample(...) UnsupportedGLFunctionStub("glTexStorage3DMultisample")
 
 #ifndef GL_ES_VERSION_3_1
 
@@ -979,6 +1087,10 @@ void UnsupportedGLFunctionStub( const T &Name )
     typedef void (GL_APIENTRY* PFNGLGETPROGRAMRESOURCENAMEPROC) (GLuint program, GLenum programInterface, GLuint index, GLsizei bufSize, GLsizei* length, GLchar *name);
     extern PFNGLGETPROGRAMRESOURCENAMEPROC glGetProgramResourceName;
 
+    #define LOAD_GL_GET_PROGRAM_RESOURCE_INDEX
+    typedef GLuint (GL_APIENTRY* PFNGLGETPROGRAMRESOURCEINDEXPROC) (GLuint program, GLenum programInterface, const GLchar *name);
+    extern PFNGLGETPROGRAMRESOURCEINDEXPROC glGetProgramResourceIndex;
+
     #define LOAD_GL_GET_PROGRAM_RESOURCEIV
     typedef void (GL_APIENTRY* PFNGLGETPROGRAMRESOURCEIVPROC) (GLuint program, GLenum programInterface, GLuint index, GLsizei propCount, const GLenum* props, GLsizei bufSize, GLsizei *length, GLint *params);
     extern PFNGLGETPROGRAMRESOURCEIVPROC glGetProgramResourceiv;
@@ -986,6 +1098,10 @@ void UnsupportedGLFunctionStub( const T &Name )
     #define LOAD_GET_TEX_LEVEL_PARAMETER_IV
     typedef void (GL_APIENTRY* PFNGLGETTEXLEVELPARAMETERIVPROC) (GLenum target, GLint level, GLenum pname, GLint *params);
     extern PFNGLGETTEXLEVELPARAMETERIVPROC glGetTexLevelParameteriv;
+
+    #define LOAD_GL_SHADER_STORAGE_BLOCK_BINDING
+    typedef void (GL_APIENTRY* PFNGLSHADERSTORAGEBLOCKBINDINGPROC) (GLuint program, GLuint storageBlockIndex, GLuint storageBlockBinding);
+    extern PFNGLSHADERSTORAGEBLOCKBINDINGPROC glShaderStorageBlockBinding;
 
 #endif //GL_ES_VERSION_3_1
 
@@ -1048,5 +1164,57 @@ extern PFNGLFRAMEBUFFERTEXTURE3DPROC glFramebufferTexture3D;
 #define LOAD_GL_COPY_IMAGE_SUB_DATA
 typedef void (GL_APIENTRY* PFNGLCOPYIMAGESUBDATAPROC) (GLuint srcName, GLenum srcTarget, GLint srcLevel, GLint srcX, GLint srcY, GLint srcZ, GLuint dstName, GLenum dstTarget, GLint dstLevel, GLint dstX, GLint dstY, GLint dstZ, GLsizei srcWidth, GLsizei srcHeight, GLsizei srcDepth);
 extern PFNGLCOPYIMAGESUBDATAPROC glCopyImageSubData;
+
+#define LOAD_GL_TEX_STORAGE_3D_MULTISAMPLE
+typedef void (GL_APIENTRY* PFNGLTEXSTORAGE3DMULTISAMPLEPROC) (GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLboolean fixedsamplelocations);
+extern PFNGLTEXSTORAGE3DMULTISAMPLEPROC glTexStorage3DMultisample;
+
+#define LOAD_GL_TEXTURE_VIEW
+typedef void (GL_APIENTRY* PFNGLTEXTUREVIEWPROC) (GLuint texture, GLenum target, GLuint origtexture, GLenum internalformat, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers);
+extern PFNGLTEXTUREVIEWPROC glTextureView;
+
+
+#define LOAD_GL_DRAW_ELEMENTS_INSTANCED_BASE_VERTEX_BASE_INSTANCE
+typedef void (GL_APIENTRY* PFNGLDRAWELEMENTSINSTANCEDBASEVERTEXBASEINSTANCEPROC) (GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount, GLint basevertex, GLuint baseinstance);
+extern PFNGLDRAWELEMENTSINSTANCEDBASEVERTEXBASEINSTANCEPROC glDrawElementsInstancedBaseVertexBaseInstance;
+
+#define LOAD_GL_DRAW_ELEMENTS_INSTANCED_BASE_VERTEX
+typedef void (GL_APIENTRY* PFNGLDRAWELEMENTSINSTANCEDBASEVERTEXPROC) (GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount, GLint basevertex);
+extern PFNGLDRAWELEMENTSINSTANCEDBASEVERTEXPROC glDrawElementsInstancedBaseVertex;
+
+#define LOAD_GL_DRAW_ELEMENTS_INSTANCED_BASE_INSTANCE
+typedef void (GL_APIENTRY* PFNGLDRAWELEMENTSINSTANCEDBASEINSTANCEPROC) (GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount, GLuint baseinstance);
+extern PFNGLDRAWELEMENTSINSTANCEDBASEINSTANCEPROC glDrawElementsInstancedBaseInstance;
+
+#define LOAD_GL_DRAW_ARRAYS_INSTANCED_BASE_INSTANCE
+typedef void (GL_APIENTRY* PFNGLDRAWARRAYSINSTANCEDBASEINSTANCEPROC) (GLenum mode, GLint first, GLsizei count, GLsizei instancecount, GLuint baseinstance);
+extern PFNGLDRAWARRAYSINSTANCEDBASEINSTANCEPROC glDrawArraysInstancedBaseInstance;
+
+#define LOAD_GL_DRAW_ELEMENTS_BASE_VERTEX
+typedef void (GL_APIENTRY* PFNGLDRAWELEMENTSBASEVERTEXPROC) (GLenum mode, GLsizei count, GLenum type, const void *indices, GLint basevertex);
+extern PFNGLDRAWELEMENTSBASEVERTEXPROC glDrawElementsBaseVertex;
+
+
+#define LOAD_GL_GET_QUERY_OBJECT_UI64V
+typedef void (GL_APIENTRY* PFNGLGETQUERYOBJECTUI64VPROC) (GLuint id, GLenum pname, GLuint64* params);
+extern PFNGLGETQUERYOBJECTUI64VPROC glGetQueryObjectui64v;
+
+#define LOAD_GL_QUERY_COUNTER
+typedef void (GL_APIENTRY* PFNGLQUERYCOUNTERPROC) (GLuint id, GLenum target);
+extern PFNGLQUERYCOUNTERPROC glQueryCounter;
+
+
+#ifndef GL_ES_VERSION_3_2
+
+    typedef void (GL_APIENTRY* GLDEBUGPROC) (GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
+
+    #define LOAD_DEBUG_MESSAGE_CALLBACK
+    typedef void (GL_APIENTRY* PFNGLDEBUGMESSAGECALLBACKPROC) (GLDEBUGPROC callback, const void *userParam);
+    extern PFNGLDEBUGMESSAGECALLBACKPROC glDebugMessageCallback;
+
+    #define LOAD_DEBUG_MESSAGE_CONTROL
+    typedef void (GL_APIENTRY* PFNGLDEBUGMESSAGECONTROLPROC) (GLenum source, GLenum type, GLenum severity, GLsizei count, const GLuint* ids, GLboolean enabled);
+    extern PFNGLDEBUGMESSAGECONTROLPROC glDebugMessageControl;
+#endif
 
 void LoadGLFunctions();

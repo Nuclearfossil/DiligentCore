@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -25,71 +29,105 @@
 
 #include <D3Dcompiler.h>
 
-#include "ShaderD3D12Impl.h"
-#include "RenderDeviceD3D12Impl.h"
-#include "DataBlobImpl.h"
-#include "D3DShaderResourceLoader.h"
-
-using namespace Diligent;
+#include "ShaderD3D12Impl.hpp"
+#include "RenderDeviceD3D12Impl.hpp"
+#include "DataBlobImpl.hpp"
 
 namespace Diligent
 {
 
+static ShaderVersion GetD3D12ShaderModel(RenderDeviceD3D12Impl* pDevice, const ShaderVersion& HLSLVersion, SHADER_COMPILER ShaderCompiler)
+{
+    ShaderVersion CompilerSM;
+    if (ShaderCompiler == SHADER_COMPILER_DXC)
+    {
+        if (pDevice->GetDxCompiler() && pDevice->GetDxCompiler()->IsLoaded())
+        {
+            CompilerSM = pDevice->GetDxCompiler()->GetMaxShaderModel();
+        }
+        else
+        {
+            LOG_ERROR_MESSAGE("DXC compiler is not loaded");
+            CompilerSM = ShaderVersion{5, 1};
+        }
+    }
+    else
+    {
+        VERIFY(ShaderCompiler == SHADER_COMPILER_FXC || ShaderCompiler == SHADER_COMPILER_DEFAULT, "Unexpected compiler");
+        // Direct3D12 supports shader model 5.1 on all feature levels.
+        // https://docs.microsoft.com/en-us/windows/win32/direct3d12/hardware-feature-levels#feature-level-support
+        CompilerSM = ShaderVersion{5, 1};
+    }
 
-ShaderD3D12Impl::ShaderD3D12Impl(IReferenceCounters*          pRefCounters,
-                                 RenderDeviceD3D12Impl*       pRenderDeviceD3D12,
-                                 const ShaderCreationAttribs& ShaderCreationAttribs) : 
-    TShaderBase(pRefCounters, pRenderDeviceD3D12, ShaderCreationAttribs.Desc),
-    ShaderD3DBase(ShaderCreationAttribs),
-    m_StaticResLayout(*this, GetRawAllocator()),
-    m_DummyShaderVar(*this),
-    m_StaticResCache(ShaderResourceCacheD3D12::DbgCacheContentType::StaticShaderResources)
+    ShaderVersion DeviceSM = pDevice->GetProperties().MaxShaderVersion;
+
+    ShaderVersion MaxSupportedSM = DeviceSM.Major == CompilerSM.Major ?
+        (DeviceSM.Minor < CompilerSM.Minor ? DeviceSM : CompilerSM) :
+        (DeviceSM.Major < CompilerSM.Major ? DeviceSM : CompilerSM);
+
+    if (HLSLVersion.Major == 0 && HLSLVersion.Minor == 0)
+    {
+        return MaxSupportedSM;
+    }
+    else
+    {
+        if (HLSLVersion.Major > MaxSupportedSM.Major ||
+            HLSLVersion.Major == MaxSupportedSM.Major && HLSLVersion.Minor > MaxSupportedSM.Minor)
+        {
+            LOG_WARNING_MESSAGE("Requested shader model ", Uint32{HLSLVersion.Major}, '_', Uint32{HLSLVersion.Minor},
+                                " is not supported by the device/compiler. Downgrading to maximum supported version ",
+                                Uint32{MaxSupportedSM.Major}, '_', Uint32{MaxSupportedSM.Minor});
+            return MaxSupportedSM;
+        }
+        else
+            return HLSLVersion;
+    }
+}
+
+ShaderD3D12Impl::ShaderD3D12Impl(IReferenceCounters*     pRefCounters,
+                                 RenderDeviceD3D12Impl*  pRenderDeviceD3D12,
+                                 const ShaderCreateInfo& ShaderCI) :
+    // clang-format off
+    TShaderBase
+    {
+        pRefCounters,
+        pRenderDeviceD3D12,
+        ShaderCI.Desc
+    },
+    ShaderD3DBase{ShaderCI, GetD3D12ShaderModel(pRenderDeviceD3D12, ShaderCI.HLSLVersion, ShaderCI.ShaderCompiler), pRenderDeviceD3D12->GetDxCompiler()},
+    m_EntryPoint{ShaderCI.EntryPoint}
+// clang-format on
 {
     // Load shader resources
-    auto &Allocator = GetRawAllocator();
-    auto *pRawMem = ALLOCATE(Allocator, "Allocator for ShaderResources", sizeof(ShaderResourcesD3D12));
-    auto *pResources = new (pRawMem) ShaderResourcesD3D12(m_pShaderByteCode, m_Desc);
+    auto& Allocator  = GetRawAllocator();
+    auto* pRawMem    = ALLOCATE(Allocator, "Allocator for ShaderResources", ShaderResourcesD3D12, 1);
+    auto* pResources = new (pRawMem) ShaderResourcesD3D12 //
+        {
+            m_pShaderByteCode,
+            m_Desc,
+            ShaderCI.UseCombinedTextureSamplers ? ShaderCI.CombinedSamplerSuffix : nullptr,
+            pRenderDeviceD3D12->GetDxCompiler() //
+        };
     m_pShaderResources.reset(pResources, STDDeleterRawMem<ShaderResourcesD3D12>(Allocator));
-
-    // Clone only static resources that will be set directly in the shader
-    // http://diligentgraphics.com/diligent-engine/architecture/d3d12/shader-resource-layout#Initializing-Special-Resource-Layout-for-Managing-Static-Shader-Resources
-    SHADER_VARIABLE_TYPE VarTypes[] = {SHADER_VARIABLE_TYPE_STATIC};
-    m_StaticResLayout.Initialize(pRenderDeviceD3D12->GetD3D12Device(), m_pShaderResources, GetRawAllocator(), VarTypes, _countof(VarTypes), &m_StaticResCache, nullptr);
 }
 
 ShaderD3D12Impl::~ShaderD3D12Impl()
 {
 }
 
-void ShaderD3D12Impl::BindResources(IResourceMapping* pResourceMapping, Uint32 Flags)
+void ShaderD3D12Impl::QueryInterface(const INTERFACE_ID& IID, IObject** ppInterface)
 {
-   m_StaticResLayout.BindResources(pResourceMapping, Flags, &m_StaticResCache);
-}
-    
-IShaderVariable* ShaderD3D12Impl::GetShaderVariable(const Char* Name)
-{
-    auto *pVar = m_StaticResLayout.GetShaderVariable(Name);
-    if(pVar == nullptr)
-        pVar = &m_DummyShaderVar;
-    return pVar;
+    if (ppInterface == nullptr)
+        return;
+    if (IID == IID_ShaderD3D || IID == IID_ShaderD3D12)
+    {
+        *ppInterface = this;
+        (*ppInterface)->AddRef();
+    }
+    else
+    {
+        TShaderBase::QueryInterface(IID, ppInterface);
+    }
 }
 
-Uint32 ShaderD3D12Impl::GetVariableCount()const
-{
-    return m_StaticResLayout.GetVariableCount();
-}
-
-IShaderVariable* ShaderD3D12Impl::GetShaderVariable(Uint32 Index)
-{
-    return m_StaticResLayout.GetShaderVariable(Index);
-}
-
-
-#ifdef VERIFY_SHADER_BINDINGS
-void ShaderD3D12Impl::DbgVerifyStaticResourceBindings()
-{
-    m_StaticResLayout.dbgVerifyBindings(m_StaticResCache);
-}
-#endif
-
-}
+} // namespace Diligent

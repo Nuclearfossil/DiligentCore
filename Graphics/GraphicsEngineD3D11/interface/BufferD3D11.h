@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -28,23 +32,36 @@
 
 #include "../../GraphicsEngine/interface/Buffer.h"
 
-namespace Diligent
-{
+DILIGENT_BEGIN_NAMESPACE(Diligent)
 
 // {4A696D2E-44BB-4C4B-9DE2-3AF7C94DCFC0}
-static constexpr INTERFACE_ID IID_BufferD3D11 =
-{ 0x4a696d2e, 0x44bb, 0x4c4b, { 0x9d, 0xe2, 0x3a, 0xf7, 0xc9, 0x4d, 0xcf, 0xc0 } };
+static const struct INTERFACE_ID IID_BufferD3D11 =
+    {0x4a696d2e, 0x44bb, 0x4c4b, {0x9d, 0xe2, 0x3a, 0xf7, 0xc9, 0x4d, 0xcf, 0xc0}};
 
-/// Interface to the buffer object implemented in D3D11
-class IBufferD3D11 : public IBuffer
+#define DILIGENT_INTERFACE_NAME IBufferD3D11
+#include "../../../Primitives/interface/DefineInterfaceHelperMacros.h"
+
+#define IBufferD3D11InclusiveMethods \
+    IBufferInclusiveMethods;         \
+    IBufferD3D11Methods BufferD3D11
+
+/// Exposes Direct3D11-specific functionality of a buffer object.
+DILIGENT_BEGIN_INTERFACE(IBufferD3D11, IBuffer)
 {
-public:
-
     /// Returns a pointer to the ID3D11Buffer interface of the internal Direct3D11 object.
 
     /// The method does *NOT* call AddRef() on the returned interface,
     /// so Release() must not be called.
-    virtual ID3D11Buffer* GetD3D11Buffer() = 0;
+    VIRTUAL ID3D11Buffer* METHOD(GetD3D11Buffer)(THIS) PURE;
 };
+DILIGENT_END_INTERFACE
 
-}
+#include "../../../Primitives/interface/UndefInterfaceHelperMacros.h"
+
+#if DILIGENT_C_INTERFACE
+
+#    define IBufferD3D11_GetD3D11Buffer(This) CALL_IFACE_METHOD(BufferD3D11, GetD3D11Buffer, This)
+
+#endif
+
+DILIGENT_END_NAMESPACE // namespace Diligent

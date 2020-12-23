@@ -25,14 +25,13 @@
 
 #import <OpenGLES/EAGL.h>
 
-#include "GLContextIOS.h"
-#include "DeviceCaps.h"
-#include "GLTypeConversions.h"
-#include "EngineGLAttribs.h"
+#include "GLContextIOS.hpp"
+#include "GraphicsTypes.h"
+#include "GLTypeConversions.hpp"
 
 namespace Diligent
 {
-    GLContext::GLContext( const EngineGLAttribs &Info, DeviceCaps &DeviceCaps )
+    GLContext::GLContext(const EngineGLCreateInfo& Info, DeviceCaps& deviceCaps, const struct SwapChainDesc* /*pSCDesc*/)
     {
         if (GetCurrentNativeGLContext() == nullptr)
         {
@@ -47,7 +46,7 @@ namespace Diligent
         //Or better yet, use the GL3 way to get the version number
         glGetIntegerv( GL_MAJOR_VERSION, &MajorVersion );
         glGetIntegerv( GL_MINOR_VERSION, &MinorVersion );
-        LOG_INFO_MESSAGE(Info.pNativeWndHandle != nullptr ? "Initialized OpenGLES " : "Attached to OpenGLES ", MajorVersion, '.', MinorVersion, " context (", GLVersionString, ", ", GLRenderer, ')');
+        LOG_INFO_MESSAGE(Info.Window.pCALayer != nullptr ? "Initialized OpenGLES " : "Attached to OpenGLES ", MajorVersion, '.', MinorVersion, " context (", GLVersionString, ", ", GLRenderer, ')');
 
         // Under the standard filtering rules for cubemaps, filtering does not work across faces of the cubemap. 
         // This results in a seam across the faces of a cubemap. This was a hardware limitation in the past, but 
@@ -66,24 +65,9 @@ namespace Diligent
         //if( glGetError() != GL_NO_ERROR )
         //    LOG_ERROR_MESSAGE("Failed to enable SRGB framebuffers");
 
-        DeviceCaps.DevType = DeviceType::OpenGLES;
-        DeviceCaps.MajorVersion = MajorVersion;
-        DeviceCaps.MinorVersion = MinorVersion;
-        DeviceCaps.bMultithreadedResourceCreationSupported = False;
-        DeviceCaps.bIndirectRenderingSupported = False;
-        DeviceCaps.bGeometryShadersSupported = False;
-        DeviceCaps.bTessellationSupported = False;
-        DeviceCaps.bWireframeFillSupported = False;
-        DeviceCaps.bComputeShadersSupported = False;
-        DeviceCaps.SamCaps.bLODBiasSupported = False;
-        DeviceCaps.SamCaps.bBorderSamplingModeSupported = False;
-        DeviceCaps.TexCaps.bTexture1DSupported = False;
-        DeviceCaps.TexCaps.bCubemapArraysSupported = False;
-        DeviceCaps.TexCaps.bTexture1DSupported = False;
-        DeviceCaps.TexCaps.bTexture1DArraySupported = False;
-        DeviceCaps.TexCaps.bTextureViewSupported = False;
-        DeviceCaps.TexCaps.bTexture2DMSSupported = False;
-        DeviceCaps.TexCaps.bTexture2DMSArraySupported = False;
+        deviceCaps.DevType = RENDER_DEVICE_TYPE_GLES;
+        deviceCaps.MajorVersion = MajorVersion;
+        deviceCaps.MinorVersion = MinorVersion;
     }
 
     GLContext::NativeGLContextType GLContext::GetCurrentNativeGLContext()

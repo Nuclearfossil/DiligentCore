@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -23,30 +27,43 @@
 
 #pragma once
 
-#include <cstdint>
-#include <string>
+#include "CommonDefinitions.h"
 
-namespace Diligent
-{
-    typedef float       Float32; ///< 32-bit float
+#if DILIGENT_C_INTERFACE
+#    include <stdint.h>
+#    include <stdbool.h>
+#    include <stddef.h>
+#else
+#    include <cstdint>
+#    include <string>
+#endif
 
-    typedef int64_t     Int64;   ///< 64-bit signed integer
-    typedef int32_t     Int32;   ///< 32-bit signed integer
-    typedef int16_t     Int16;   ///< 16-bit signed integer
-    typedef int8_t      Int8;    ///< 8-bit signed integer
+DILIGENT_BEGIN_NAMESPACE(Diligent)
 
-    typedef uint64_t    Uint64;  ///< 64-bit unsigned integer
-    typedef uint32_t    Uint32;  ///< 32-bit unsigned integer
-    typedef uint16_t    Uint16;  ///< 16-bit unsigned integer
-    typedef uint8_t     Uint8;   ///< 8-bit unsigned integer
+typedef float Float32; ///< 32-bit float
 
-    typedef size_t SizeType;
-    typedef void* PVoid;
+typedef int64_t Int64; ///< 64-bit signed integer
+typedef int32_t Int32; ///< 32-bit signed integer
+typedef int16_t Int16; ///< 16-bit signed integer
+typedef int8_t  Int8;  ///< 8-bit signed integer
 
-    typedef bool Bool;          ///< Boolean
-    static constexpr Bool False = false;
-    static constexpr Bool True = true;
+typedef uint64_t Uint64; ///< 64-bit unsigned integer
+typedef uint32_t Uint32; ///< 32-bit unsigned integer
+typedef uint16_t Uint16; ///< 16-bit unsigned integer
+typedef uint8_t  Uint8;  ///< 8-bit unsigned integer
 
-    typedef char Char;
-    typedef std::basic_string<Char> String; ///< String variable
-}
+typedef size_t      SizeType;
+typedef void*       PVoid;
+typedef const void* CPVoid;
+
+typedef bool Bool; ///< Boolean
+
+static const Bool False = false;
+static const Bool True  = true;
+
+typedef char Char;
+#if !DILIGENT_C_INTERFACE
+using String = std::basic_string<Char>; ///< String variable
+#endif
+
+DILIGENT_END_NAMESPACE // namespace Diligent

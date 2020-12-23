@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -23,45 +27,72 @@
 
 #include "pch.h"
 #include <sstream>
-#include "RenderPassCache.h"
-#include "RenderDeviceVkImpl.h"
-#include "PipelineStateVkImpl.h"
+#include "RenderPassCache.hpp"
+#include "RenderDeviceVkImpl.hpp"
+#include "PipelineStateVkImpl.hpp"
+#include "RenderPassVkImpl.hpp"
 
 namespace Diligent
 {
 
+RenderPassCache::RenderPassCache(RenderDeviceVkImpl& DeviceVk) noexcept :
+    m_DeviceVkImpl{DeviceVk}
+{}
+
+
 RenderPassCache::~RenderPassCache()
 {
-    auto& FBCache = m_DeviceVkImpl.GetFramebufferCache();
-    for(auto it = m_Cache.begin(); it != m_Cache.end(); ++it)
-    {
-        FBCache.OnDestroyRenderPass(it->second);
-    }
+    // Render pass cache is part of the render device, so we can't release
+    // render pass objects from here as their destructors will attmept to
+    // call SafeReleaseDeviceObject.
+    VERIFY(m_Cache.empty(), "Render pass cache is not empty. Did you call Destroy?");
 }
 
-VkRenderPass RenderPassCache::GetRenderPass(const RenderPassCacheKey& Key)
+void RenderPassCache::Destroy()
 {
-    std::lock_guard<std::mutex> Lock(m_Mutex);
-    auto it = m_Cache.find(Key);
-    if(it == m_Cache.end())
+    auto& FBCache = m_DeviceVkImpl.GetFramebufferCache();
+    for (auto it = m_Cache.begin(); it != m_Cache.end(); ++it)
+    {
+        FBCache.OnDestroyRenderPass(it->second->GetVkRenderPass());
+    }
+    m_Cache.clear();
+}
+
+
+RenderPassVkImpl* RenderPassCache::GetRenderPass(const RenderPassCacheKey& Key)
+{
+    std::lock_guard<std::mutex> Lock{m_Mutex};
+    auto                        it = m_Cache.find(Key);
+    if (it == m_Cache.end())
     {
         // Do not zero-intitialize arrays
-        std::array<VkAttachmentDescription, MaxRenderTargets+1> Attachments;
-        std::array<VkAttachmentReference,   MaxRenderTargets+1> AttachmentReferences;
-        VkSubpassDescription                                    Subpass;
-        auto RenderPassCI = PipelineStateVkImpl::GetRenderPassCreateInfo(Key.NumRenderTargets, Key.RTVFormats, Key.DSVFormat,
-                                                                         Key.SampleCount, Attachments, AttachmentReferences, Subpass);
+        std::array<RenderPassAttachmentDesc, MAX_RENDER_TARGETS + 1> Attachments;
+        std::array<AttachmentReference, MAX_RENDER_TARGETS + 1>      AttachmentReferences;
+
+        SubpassDesc Subpass;
+
+        auto RPDesc =
+            PipelineStateVkImpl::GetImplicitRenderPassDesc(Key.NumRenderTargets, Key.RTVFormats, Key.DSVFormat,
+                                                           Key.SampleCount, Attachments, AttachmentReferences, Subpass);
         std::stringstream PassNameSS;
-        PassNameSS << "Render pass: rt count: " << Key.NumRenderTargets << "; sample count: "<< Key.SampleCount 
-                   << "; DSV Format: " << GetTextureFormatAttribs(Key.DSVFormat).Name << "; RTV Formats: ";
-        for(Uint32 rt = 0; rt < Key.NumRenderTargets; ++rt)
-            PassNameSS << (rt > 0 ? ", " : "") << GetTextureFormatAttribs(Key.RTVFormats[rt]).Name;
-        auto RenderPass = m_DeviceVkImpl.GetLogicalDevice().CreateRenderPass(RenderPassCI, PassNameSS.str().c_str());
-        VERIFY_EXPR(RenderPass != VK_NULL_HANDLE);
-        it = m_Cache.emplace(Key, std::move(RenderPass)).first;
+        PassNameSS << "Implicit render pass: RT count: " << Uint32{Key.NumRenderTargets} << "; sample count: " << Uint32{Key.SampleCount}
+                   << "; DSV Format: " << GetTextureFormatAttribs(Key.DSVFormat).Name;
+        if (Key.NumRenderTargets > 0)
+        {
+            PassNameSS << (Key.NumRenderTargets > 1 ? "; RTV Formats: " : "; RTV Format: ");
+            for (Uint32 rt = 0; rt < Key.NumRenderTargets; ++rt)
+            {
+                PassNameSS << (rt > 0 ? ", " : "") << GetTextureFormatAttribs(Key.RTVFormats[rt]).Name;
+            }
+        }
+
+        RefCntAutoPtr<RenderPassVkImpl> pRenderPass;
+        m_DeviceVkImpl.CreateRenderPass(RPDesc, pRenderPass.GetRawDblPtr<IRenderPass>(), /* IsDeviceInternal = */ true);
+        VERIFY_EXPR(pRenderPass != nullptr);
+        it = m_Cache.emplace(Key, std::move(pRenderPass)).first;
     }
 
     return it->second;
 }
 
-}
+} // namespace Diligent

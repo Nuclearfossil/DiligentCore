@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -23,13 +27,15 @@
 
 #pragma once
 
+// clang-format off
+
 /// \file
 /// Rasterizer state description
 
 #include "GraphicsTypes.h"
 
-namespace Diligent
-{
+DILIGENT_BEGIN_NAMESPACE(Diligent)
+
 
 /// Fill mode
 
@@ -37,8 +43,8 @@ namespace Diligent
 /// [D3D12_FILL_MODE]: https://msdn.microsoft.com/en-us/library/windows/desktop/dn770366(v=vs.85).aspx
 /// This enumeration determines the fill mode to use when rendering triangles and mirrors the 
 /// [D3D11_FILL_MODE][]/[D3D12_FILL_MODE][] enum. It is used by RasterizerStateDesc structure to define the fill mode.
-enum FILL_MODE : Int8
-{ 
+DILIGENT_TYPED_ENUM(FILL_MODE, Int8)
+{
     /// Undefined fill mode.
     FILL_MODE_UNDEFINED = 0,
 
@@ -60,7 +66,7 @@ enum FILL_MODE : Int8
 /// [D3D12_CULL_MODE]: https://msdn.microsoft.com/en-us/library/windows/desktop/dn770354(v=vs.85).aspx
 /// This enumeration defines which triangles are not drawn during the rasterization and mirrors
 /// [D3D11_CULL_MODE][]/[D3D12_CULL_MODE][] enum. It is used by RasterizerStateDesc structure to define the polygon cull mode.
-enum CULL_MODE : Int8
+DILIGENT_TYPED_ENUM(CULL_MODE, Int8)
 {
     /// Undefined cull mode.
     CULL_MODE_UNDEFINED = 0,
@@ -90,70 +96,70 @@ enum CULL_MODE : Int8
 struct RasterizerStateDesc
 {
     /// Determines traingle fill mode, see Diligent::FILL_MODE for details.
-    FILL_MODE FillMode;
+    /// Default value: Diligent::FILL_MODE_SOLID.
+    FILL_MODE FillMode              DEFAULT_INITIALIZER(FILL_MODE_SOLID);
 
     /// Determines traingle cull mode, see Diligent::CULL_MODE for details.
-    CULL_MODE CullMode;
+    /// Default value: Diligent::CULL_MODE_BACK.
+    CULL_MODE CullMode              DEFAULT_INITIALIZER(CULL_MODE_BACK);
 
     /// Determines if a triangle is front- or back-facing. If this parameter is True, 
     /// a triangle will be considered front-facing if its vertices are counter-clockwise 
     /// on the render target and considered back-facing if they are clockwise. 
     /// If this parameter is False, the opposite is true.
-    Bool      FrontCounterClockwise;
+    /// Default value: False.
+    Bool      FrontCounterClockwise DEFAULT_INITIALIZER(False);
 
-    /// Enable clipping based on distance.
-    /// \warning On DirectX this only disables clipping against far clipping plane,
-    ///          while on OpenGL this disables clipping against both far and near clip planes.
-    Bool      DepthClipEnable;
+    /// Enable clipping against near and far clip planes.
+    /// Default value: True.
+    Bool      DepthClipEnable       DEFAULT_INITIALIZER(True);
 
     /// Enable scissor-rectangle culling. All pixels outside an active scissor rectangle are culled.
-    Bool      ScissorEnable;
+    /// Default value: False.
+    Bool      ScissorEnable         DEFAULT_INITIALIZER(False);
 
     /// Specifies whether to enable line antialiasing.
-    Bool      AntialiasedLineEnable;
+    /// Default value: False.
+    Bool      AntialiasedLineEnable DEFAULT_INITIALIZER(False);
 
     /// Constant value added to the depth of a given pixel.
-    Int32     DepthBias;
+    /// Default value: 0.
+    Int32     DepthBias             DEFAULT_INITIALIZER(0);
 
     /// Maximum depth bias of a pixel.
     /// \warning Depth bias clamp is not available in OpenGL
-    Float32   DepthBiasClamp;
+    /// Default value: 0.
+    Float32   DepthBiasClamp        DEFAULT_INITIALIZER(0.f);
 
     /// Scalar that scales the given pixel's slope before adding to the pixel's depth.
-    Float32   SlopeScaledDepthBias;
+    /// Default value: 0.
+    Float32   SlopeScaledDepthBias  DEFAULT_INITIALIZER(0.f);
 
-    /// Member                | Default value
-    /// ----------------------|--------------
-    /// FillMode              | FILL_MODE_SOLID
-    /// CullMode              | CULL_MODE_BACK
-    /// FrontCounterClockwise | False
-    /// DepthBias             | 0
-    /// DepthBiasClamp        | 0.f
-    /// SlopeScaledDepthBias  | 0.f
-    /// DepthClipEnable       | True
-    /// ScissorEnable         | False
-    /// AntialiasedLineEnable | False
-    RasterizerStateDesc(FILL_MODE _FillMode              = FILL_MODE_SOLID,
-                        CULL_MODE _CullMode              = CULL_MODE_BACK,
-                        Bool      _FrontCounterClockwise = False,
-                        Int32     _DepthBias             = 0,
-                        Float32   _DepthBiasClamp        = 0.f,
-                        Float32   _SlopeScaledDepthBias  = 0.f,
-                        Bool      _DepthClipEnable       = True,
-                        Bool      _ScissorEnable         = False,
-                        Bool      _AntialiasedLineEnable = False) : 
-        FillMode             ( _FillMode ),
-        CullMode             ( _CullMode ),
-        FrontCounterClockwise( _FrontCounterClockwise ),
-        DepthClipEnable      ( _DepthClipEnable ),
-        ScissorEnable        ( _ScissorEnable ),
-        AntialiasedLineEnable( _AntialiasedLineEnable ),
-        DepthBias            ( _DepthBias ),
-        DepthBiasClamp       ( _DepthBiasClamp ),
-        SlopeScaledDepthBias ( _SlopeScaledDepthBias )
+
+#if DILIGENT_CPP_INTERFACE
+
+    RasterizerStateDesc()noexcept{}
+
+    RasterizerStateDesc(FILL_MODE _FillMode,
+                        CULL_MODE _CullMode,
+                        Bool      _FrontCounterClockwise = RasterizerStateDesc{}.FrontCounterClockwise,
+                        Bool      _DepthClipEnable       = RasterizerStateDesc{}.DepthClipEnable,
+                        Bool      _ScissorEnable         = RasterizerStateDesc{}.ScissorEnable,
+                        Bool      _AntialiasedLineEnable = RasterizerStateDesc{}.AntialiasedLineEnable,
+                        Int32     _DepthBias             = RasterizerStateDesc{}.DepthBias,
+                        Float32   _DepthBiasClamp        = RasterizerStateDesc{}.DepthBiasClamp,
+                        Float32   _SlopeScaledDepthBias  = RasterizerStateDesc{}.SlopeScaledDepthBias)noexcept : 
+        FillMode              {_FillMode             },
+        CullMode              {_CullMode             },
+        FrontCounterClockwise {_FrontCounterClockwise},
+        DepthClipEnable       {_DepthClipEnable      },
+        ScissorEnable         {_ScissorEnable        },
+        AntialiasedLineEnable {_AntialiasedLineEnable},
+        DepthBias             {_DepthBias            },
+        DepthBiasClamp        {_DepthBiasClamp       },
+        SlopeScaledDepthBias  {_SlopeScaledDepthBias }
     {
     }
-    
 
     /// Tests if two structures are equivalent
 
@@ -173,6 +179,8 @@ struct RasterizerStateDesc
                 ScissorEnable         == RHS.ScissorEnable         &&
                 AntialiasedLineEnable == RHS.AntialiasedLineEnable;
     }
+#endif
 };
+typedef struct RasterizerStateDesc RasterizerStateDesc;
 
-}
+DILIGENT_END_NAMESPACE

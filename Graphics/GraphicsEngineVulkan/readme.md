@@ -1,11 +1,13 @@
 
 # GraphicsEngineVulkan
 
-Implementation of Diligent Engine API using Vulkan
+Implementation of Vulkan back-end
 
 
 
-
-**Copyright 2015-2018 Egor Yusov**
+-------------------
 
 [diligentgraphics.com](http://diligentgraphics.com)
+
+[![Diligent Engine on Twitter](https://github.com/DiligentGraphics/DiligentCore/blob/master/media/twitter.png)](https://twitter.com/diligentengine)
+[![Diligent Engine on Facebook](https://github.com/DiligentGraphics/DiligentCore/blob/master/media/facebook.png)](https://www.facebook.com/DiligentGraphics/)

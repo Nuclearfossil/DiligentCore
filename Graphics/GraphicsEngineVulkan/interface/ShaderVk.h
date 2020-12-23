@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -26,23 +30,33 @@
 /// \file
 /// Definition of the Diligent::IShaderVk interface
 
-#include <vector>
+#include "../../../Primitives/interface/CommonDefinitions.h"
+#if DILIGENT_CPP_INTERFACE
+#    include <vector>
+#endif
+
 #include "../../GraphicsEngine/interface/Shader.h"
 
-namespace Diligent
-{
+DILIGENT_BEGIN_NAMESPACE(Diligent)
 
 // {8B0C91B4-B1D8-4E03-9250-A70E131A59FA}
-static constexpr INTERFACE_ID IID_ShaderVk =
-{ 0x8b0c91b4, 0xb1d8, 0x4e03,{ 0x92, 0x50, 0xa7, 0xe, 0x13, 0x1a, 0x59, 0xfa } };
+static const INTERFACE_ID IID_ShaderVk =
+    {0x8b0c91b4, 0xb1d8, 0x4e03, {0x92, 0x50, 0xa7, 0xe, 0x13, 0x1a, 0x59, 0xfa}};
 
-/// Interface to the shader object implemented in Vulkan
+#define IShaderVkInclusiveMethods \
+    IShaderInclusiveMethods;      \
+    IShaderVkMethods ShaderVk
+
+#if DILIGENT_CPP_INTERFACE
+
+/// Exposes Vulkan-specific functionality of a shader object.
 class IShaderVk : public IShader
 {
 public:
-
     /// Returns SPIRV bytecode
-    virtual const std::vector<uint32_t>& GetSPIRV()const = 0;
+    virtual const std::vector<uint32_t>& DILIGENT_CALL_TYPE GetSPIRV() const = 0;
 };
 
-}
+#endif
+
+DILIGENT_END_NAMESPACE // namespace Diligent

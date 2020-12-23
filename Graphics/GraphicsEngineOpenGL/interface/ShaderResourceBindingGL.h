@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -28,19 +32,37 @@
 
 #include "../../GraphicsEngine/interface/ShaderResourceBinding.h"
 
-namespace Diligent
-{
+DILIGENT_BEGIN_NAMESPACE(Diligent)
 
 // {41DB0329-B6D2-4470-9A58-D44CF4695FC6}
-static constexpr INTERFACE_ID IID_ShaderResourceBindingGL =
-{ 0x41db0329, 0xb6d2, 0x4470, { 0x9a, 0x58, 0xd4, 0x4c, 0xf4, 0x69, 0x5f, 0xc6 } };
+static const INTERFACE_ID IID_ShaderResourceBindingGL =
+    {0x41db0329, 0xb6d2, 0x4470, {0x9a, 0x58, 0xd4, 0x4c, 0xf4, 0x69, 0x5f, 0xc6}};
 
-/// Shader resource binding interface
+#define DILIGENT_INTERFACE_NAME IShaderResourceBindingGL
+#include "../../../Primitives/interface/DefineInterfaceHelperMacros.h"
 
-class IShaderResourceBindingGL : public IShaderResourceBinding
+#define IShaderResourceBindingGLInclusiveMethods \
+    IShaderResourceBindingInclusiveMethods
+//IShaderResourceBindingGLMethods ShaderResourceBindingGL
+
+#if DILIGENT_CPP_INTERFACE
+
+/// Exposes OpenGL-specific functionality of a shader resource binding object.
+DILIGENT_BEGIN_INTERFACE(IShaderResourceBindingGL, IShaderResourceBinding){};
+DILIGENT_END_INTERFACE
+
+#endif
+
+#include "../../../Primitives/interface/UndefInterfaceHelperMacros.h"
+
+#if DILIGENT_C_INTERFACE
+
+typedef struct IShaderResourceBindingGLVtbl
 {
-public:
+    IShaderResourceBindingGLInclusiveMethods;
+} IShaderResourceBindingGLVtbl;
 
-};
+#endif
 
-}
+
+DILIGENT_END_NAMESPACE // namespace Diligent

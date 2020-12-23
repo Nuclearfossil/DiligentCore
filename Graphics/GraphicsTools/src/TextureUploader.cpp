@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -22,34 +26,51 @@
  */
 
 #include "pch.h"
-#include "TextureUploaderD3D11.h"
-#include "TextureUploaderD3D12.h"
-#include "TextureUploaderGL.h"
+#if D3D11_SUPPORTED
+#    include "TextureUploaderD3D11.hpp"
+#endif
+
+#if D3D12_SUPPORTED || VULKAN_SUPPORTED
+#    include "TextureUploaderD3D12_Vk.hpp"
+#endif
+
+#if GL_SUPPORTED || GLES_SUPPORTED
+#    include "TextureUploaderGL.hpp"
+#endif
 
 namespace Diligent
 {
-    void CreateTextureUploader(IRenderDevice *pDevice, const TextureUploaderDesc& Desc, ITextureUploader **ppUploader)
+
+void CreateTextureUploader(IRenderDevice* pDevice, const TextureUploaderDesc& Desc, ITextureUploader** ppUploader)
+{
+    *ppUploader = nullptr;
+    switch (pDevice->GetDeviceCaps().DevType)
     {
-        *ppUploader = nullptr;
-        switch (pDevice->GetDeviceCaps().DevType)
-        {
-            case DeviceType::D3D11:
-                *ppUploader = MakeNewRCObj<TextureUploaderD3D11>()( pDevice, Desc );
-                break;
+#if D3D11_SUPPORTED
+        case RENDER_DEVICE_TYPE_D3D11:
+            *ppUploader = MakeNewRCObj<TextureUploaderD3D11>()(pDevice, Desc);
+            break;
+#endif
 
-            case DeviceType::D3D12:
-                *ppUploader = MakeNewRCObj<TextureUploaderD3D12>()( pDevice, Desc );
-                break;
+#if D3D12_SUPPORTED || VULKAN_SUPPORTED
+        case RENDER_DEVICE_TYPE_D3D12:
+        case RENDER_DEVICE_TYPE_VULKAN:
+            *ppUploader = MakeNewRCObj<TextureUploaderD3D12_Vk>()(pDevice, Desc);
+            break;
+#endif
 
-            case DeviceType::OpenGLES:
-            case DeviceType::OpenGL:
-                *ppUploader = MakeNewRCObj<TextureUploaderGL>()( pDevice, Desc );
-                break;
-            
-            default:
-                UNEXPECTED("Unexpected device type");
-        }
-        if (*ppUploader != nullptr)
-            (*ppUploader)->AddRef();
+#if GL_SUPPORTED || GLES_SUPPORTED
+        case RENDER_DEVICE_TYPE_GLES:
+        case RENDER_DEVICE_TYPE_GL:
+            *ppUploader = MakeNewRCObj<TextureUploaderGL>()(pDevice, Desc);
+            break;
+#endif
+
+        default:
+            UNEXPECTED("Unsupported device type");
     }
+    if (*ppUploader != nullptr)
+        (*ppUploader)->AddRef();
 }
+
+} // namespace Diligent

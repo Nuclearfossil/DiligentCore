@@ -21,10 +21,8 @@
  *  of the possibility of such damages.
  */
 
-#include "pch.h"
-
-#include "UWPDebug.h"
-#include "FormatMessage.h"
+#include "UWPDebug.hpp"
+#include "FormatString.hpp"
 #include <csignal>
 
 #define NOMINMAX
@@ -32,10 +30,10 @@
 
 using namespace Diligent;
 
-void WindowsStoreDebug :: AssertionFailed( const Diligent::Char *Message, const char *Function, const char *File, int Line )
+void WindowsStoreDebug ::AssertionFailed(const Diligent::Char* Message, const char* Function, const char* File, int Line)
 {
     auto AssertionFailedMessage = FormatAssertionFailedMessage(Message, Function, File, Line);
-    OutputDebugMessage( DebugMessageSeverity::Error, AssertionFailedMessage.c_str(), nullptr, nullptr, 0 );
+    OutputDebugMessage(DEBUG_MESSAGE_SEVERITY_ERROR, AssertionFailedMessage.c_str(), nullptr, nullptr, 0);
 
     __debugbreak();
     //int nCode = MessageBoxA(NULL,
@@ -68,18 +66,20 @@ void WindowsStoreDebug :: AssertionFailed( const Diligent::Char *Message, const 
 };
 
 
-void WindowsStoreDebug::OutputDebugMessage(DebugMessageSeverity Severity, const Char *Message, const char *Function, const char *File, int Line)
+void WindowsStoreDebug::OutputDebugMessage(DEBUG_MESSAGE_SEVERITY Severity, const Char* Message, const char* Function, const char* File, int Line)
 {
     auto msg = FormatDebugMessage(Severity, Message, Function, File, Line);
-    OutputDebugStringA( msg.c_str() );
+    OutputDebugStringA(msg.c_str());
 }
 
 void DebugAssertionFailed(const Diligent::Char* Message, const char* Function, const char* File, int Line)
 {
-    WindowsStoreDebug :: AssertionFailed( Message, Function, File, Line );
+    WindowsStoreDebug ::AssertionFailed(Message, Function, File, Line);
 }
 
 namespace Diligent
 {
+
 DebugMessageCallbackType DebugMessageCallback = WindowsStoreDebug::OutputDebugMessage;
+
 }

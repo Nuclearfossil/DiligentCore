@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -22,68 +26,128 @@
  */
 
 #include "pch.h"
-#include "CommandPoolManager.h"
+#include "CommandPoolManager.hpp"
+#include "RenderDeviceVkImpl.hpp"
 
 namespace Diligent
 {
 
-CommandPoolManager::CommandPoolManager(const VulkanUtilities::VulkanLogicalDevice& LogicalDevice, 
-                                       uint32_t                                    queueFamilyIndex, 
-                                       VkCommandPoolCreateFlags                    flags)noexcept:
-    m_LogicalDevice   (LogicalDevice),
-    m_QueueFamilyIndex(queueFamilyIndex),
-    m_CmdPoolFlags    (flags),
-    m_CmdPools(STD_ALLOCATOR_RAW_MEM(CmdPoolQueueElemType, GetRawAllocator(), "Allocator for deque< std::pair<uint64_t, CommandPoolWrapper > >"))
+CommandPoolManager::CommandPoolManager(RenderDeviceVkImpl&      DeviceVkImpl,
+                                       std::string              Name,
+                                       uint32_t                 queueFamilyIndex,
+                                       VkCommandPoolCreateFlags flags) noexcept :
+    // clang-format off
+    m_DeviceVkImpl    {DeviceVkImpl     },
+    m_Name            {std::move(Name)  },
+    m_QueueFamilyIndex{queueFamilyIndex },
+    m_CmdPoolFlags    {flags            },
+    m_CmdPools        (STD_ALLOCATOR_RAW_MEM(VulkanUtilities::CommandPoolWrapper, GetRawAllocator(), "Allocator for deque<VulkanUtilities::CommandPoolWrapper>"))
+// clang-format on
 {
+#ifdef DILIGENT_DEVELOPMENT
+    m_AllocatedPoolCounter = 0;
+#endif
 }
 
-VulkanUtilities::CommandPoolWrapper CommandPoolManager::AllocateCommandPool(uint64_t CompletedFenceValue, const char* DebugName)
+VulkanUtilities::CommandPoolWrapper CommandPoolManager::AllocateCommandPool(const char* DebugName)
 {
-    std::lock_guard<std::mutex> LockGuard(m_Mutex);
+    std::lock_guard<std::mutex> LockGuard{m_Mutex};
+
+    const auto& LogicalDevice = m_DeviceVkImpl.GetLogicalDevice();
 
     VulkanUtilities::CommandPoolWrapper CmdPool;
-    if(!m_CmdPools.empty() && m_CmdPools.front().first <= CompletedFenceValue)
+    if (!m_CmdPools.empty())
     {
-        CmdPool = std::move(m_CmdPools.front().second);
+        CmdPool = std::move(m_CmdPools.front());
         m_CmdPools.pop_front();
+
+        LogicalDevice.ResetCommandPool(CmdPool);
     }
 
-    if(CmdPool == VK_NULL_HANDLE)
+    if (CmdPool == VK_NULL_HANDLE)
     {
         VkCommandPoolCreateInfo CmdPoolCI = {};
-        CmdPoolCI.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        CmdPoolCI.pNext = nullptr;
+
+        CmdPoolCI.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        CmdPoolCI.pNext            = nullptr;
         CmdPoolCI.queueFamilyIndex = m_QueueFamilyIndex;
-        CmdPoolCI.flags = m_CmdPoolFlags;
-        CmdPool = m_LogicalDevice.CreateCommandPool(CmdPoolCI);
-        VERIFY_EXPR(CmdPool != VK_NULL_HANDLE);
+        CmdPoolCI.flags            = m_CmdPoolFlags;
+
+        CmdPool = LogicalDevice.CreateCommandPool(CmdPoolCI);
+        DEV_CHECK_ERR(CmdPool != VK_NULL_HANDLE, "Failed to create Vulkan command pool");
     }
 
-    m_LogicalDevice.ResetCommandPool(CmdPool);
-
+#ifdef DILIGENT_DEVELOPMENT
+    ++m_AllocatedPoolCounter;
+#endif
     return std::move(CmdPool);
 }
 
-void CommandPoolManager::DisposeCommandPool(VulkanUtilities::CommandPoolWrapper&& CmdPool, uint64_t FenceValue)
+void CommandPoolManager::SafeReleaseCommandPool(VulkanUtilities::CommandPoolWrapper&& CmdPool, Uint32 CmdQueueIndex, Uint64 FenceValue)
 {
-    std::lock_guard<std::mutex> LockGuard(m_Mutex);
-    // Command pools must be disposed after the corresponding command list has been submitted to the queue.
-    // At this point the fence value has been incremented, so the pool can be added to the queue.
-    // There is no need to go through stale objects queue as FenceValue is guaranteed to be signaled
-    // afer the command buffer submission
-    m_CmdPools.emplace_back(FenceValue, std::move(CmdPool));
+    class CommandPoolDeleter
+    {
+    public:
+        CommandPoolDeleter(CommandPoolManager& _CmdPoolMgr, VulkanUtilities::CommandPoolWrapper&& _Pool) :
+            // clang-format off
+            CmdPoolMgr{&_CmdPoolMgr    },
+            Pool      {std::move(_Pool)}
+        // clang-format on
+        {
+            VERIFY_EXPR(Pool != VK_NULL_HANDLE);
+        }
+
+        // clang-format off
+        CommandPoolDeleter             (const CommandPoolDeleter&)  = delete;
+        CommandPoolDeleter& operator = (const CommandPoolDeleter&)  = delete;
+        CommandPoolDeleter& operator = (      CommandPoolDeleter&&) = delete;
+
+        CommandPoolDeleter(CommandPoolDeleter&& rhs) : 
+            CmdPoolMgr{rhs.CmdPoolMgr     },
+            Pool      {std::move(rhs.Pool)}
+        {
+            rhs.CmdPoolMgr = nullptr;
+        }
+        // clang-format on
+
+        ~CommandPoolDeleter()
+        {
+            if (CmdPoolMgr != nullptr)
+            {
+                CmdPoolMgr->FreeCommandPool(std::move(Pool));
+            }
+        }
+
+    private:
+        CommandPoolManager*                 CmdPoolMgr;
+        VulkanUtilities::CommandPoolWrapper Pool;
+    };
+
+    // Discard command pool directly to the release queue since we know exactly which queue it was submitted to
+    // as well as the associated FenceValue
+    m_DeviceVkImpl.GetReleaseQueue(CmdQueueIndex).DiscardResource(CommandPoolDeleter{*this, std::move(CmdPool)}, FenceValue);
 }
 
-void CommandPoolManager::DestroyPools(uint64_t CompletedFenceValue)
+void CommandPoolManager::FreeCommandPool(VulkanUtilities::CommandPoolWrapper&& CmdPool)
 {
     std::lock_guard<std::mutex> LockGuard(m_Mutex);
-    while(!m_CmdPools.empty() && m_CmdPools.front().first <= CompletedFenceValue)
-        m_CmdPools.pop_front();
+#ifdef DILIGENT_DEVELOPMENT
+    --m_AllocatedPoolCounter;
+#endif
+    m_CmdPools.emplace_back(std::move(CmdPool));
+}
+
+void CommandPoolManager::DestroyPools()
+{
+    std::lock_guard<std::mutex> LockGuard(m_Mutex);
+    DEV_CHECK_ERR(m_AllocatedPoolCounter == 0, m_AllocatedPoolCounter, " pool(s) have not been freed. This will cause a crash if the references to these pools are still in release queues when CommandPoolManager::FreeCommandPool() is called for destroyed CommandPoolManager object.");
+    LOG_INFO_MESSAGE(m_Name, " allocated descriptor pool count: ", m_CmdPools.size());
+    m_CmdPools.clear();
 }
 
 CommandPoolManager::~CommandPoolManager()
 {
-    VERIFY(m_CmdPools.empty(), "Command pools have not been destroyed");
+    DEV_CHECK_ERR(m_CmdPools.empty() && m_AllocatedPoolCounter == 0, "Command pools have not been destroyed");
 }
 
-}
+} // namespace Diligent

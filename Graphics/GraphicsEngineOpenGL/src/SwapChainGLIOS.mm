@@ -27,29 +27,39 @@
 #import <OpenGLES/EAGL.h>
 #import <OpenGLES/EAGLDrawable.h>
 
-#include "DeviceContextGLImpl.h"
-#include "RenderDeviceGLImpl.h"
-#include "SwapChainGLIOS.h"
-#include "EngineGLAttribs.h"
+#include "DeviceContextGLImpl.hpp"
+#include "RenderDeviceGLImpl.hpp"
+#include "SwapChainGLIOS.hpp"
 
 namespace Diligent
 {
-SwapChainGLIOS::SwapChainGLIOS(IReferenceCounters *pRefCounters,
-                               const EngineGLAttribs &InitAttribs,
-                               const SwapChainDesc& SCDesc,
-                               RenderDeviceGLImpl* pRenderDeviceGL,
-                               DeviceContextGLImpl* pImmediateContextGL) :
-    TSwapChainBase( pRefCounters, pRenderDeviceGL, pImmediateContextGL, SCDesc),
+SwapChainGLIOS::SwapChainGLIOS(IReferenceCounters*          pRefCounters,
+                               const EngineGLCreateInfo&    InitAttribs,
+                               const SwapChainDesc&         SCDesc,
+                               RenderDeviceGLImpl*          pRenderDeviceGL,
+                               DeviceContextGLImpl*         pImmediateContextGL) :
+    TSwapChainGLBase( pRefCounters, pRenderDeviceGL, pImmediateContextGL, SCDesc),
     m_ColorRenderBuffer(false),
     m_DepthRenderBuffer(false),
     m_DefaultFBO(false)
 {
-    m_CALayer = InitAttribs.pNativeWndHandle;
+    if (m_DesiredPreTransform != SURFACE_TRANSFORM_OPTIMAL &&
+        m_DesiredPreTransform != SURFACE_TRANSFORM_IDENTITY)
+    {
+        LOG_WARNING_MESSAGE(GetSurfaceTransformString(m_DesiredPreTransform),
+                            " is not an allowed pretransform because OpenGL swap chains only support identity transform. "
+                            "Use SURFACE_TRANSFORM_OPTIMAL (recommended) or SURFACE_TRANSFORM_IDENTITY.");
+    }
+    m_DesiredPreTransform        = SURFACE_TRANSFORM_OPTIMAL;
+    m_SwapChainDesc.PreTransform = SURFACE_TRANSFORM_IDENTITY;
+
+    m_CALayer = InitAttribs.Window.pCALayer;
     InitRenderBuffers(true, m_SwapChainDesc.Width, m_SwapChainDesc.Height);
+    CreateDummyBuffers(m_pRenderDevice.RawPtr<RenderDeviceGLImpl>());
 }
 
 IMPLEMENT_QUERY_INTERFACE( SwapChainGLIOS, IID_SwapChainGL, TSwapChainBase )
-    
+
 void SwapChainGLIOS::Present(Uint32 SyncInterval)
 {
     EAGLContext* context = [EAGLContext currentContext];
@@ -62,15 +72,15 @@ void SwapChainGLIOS::Present(Uint32 SyncInterval)
 void SwapChainGLIOS::InitRenderBuffers(bool InitFromDrawable, Uint32 &Width, Uint32 &Height)
 {
     EAGLContext* context = [EAGLContext currentContext];
-    
+
     m_DefaultFBO.Release();
     m_DefaultFBO.Create();
     glBindFramebuffer(GL_FRAMEBUFFER, m_DefaultFBO);
-    
+
     m_ColorRenderBuffer.Release();
     m_ColorRenderBuffer.Create();
     glBindRenderbuffer(GL_RENDERBUFFER, m_ColorRenderBuffer);
-    
+
     if(InitFromDrawable)
     {
         // This call associates the storage for the current render buffer with the
@@ -85,9 +95,9 @@ void SwapChainGLIOS::InitRenderBuffers(bool InitFromDrawable, Uint32 &Width, Uin
         CAEAGLLayer* layer = (__bridge CAEAGLLayer*)m_CALayer;
         [context renderbufferStorage:GL_RENDERBUFFER fromDrawable:layer];
     }
-    
+
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, m_ColorRenderBuffer);
-    
+
     // Get the drawable buffer's width and height so we can create a depth buffer for the FBO
     GLint backingWidth;
     GLint backingHeight;
@@ -95,41 +105,24 @@ void SwapChainGLIOS::InitRenderBuffers(bool InitFromDrawable, Uint32 &Width, Uin
     glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &backingHeight);
     Width = backingWidth;
     Height = backingHeight;
-    
+
     // Create a depth buffer to use with our drawable FBO
     m_DepthRenderBuffer.Release();
     m_DepthRenderBuffer.Create();
     glBindRenderbuffer(GL_RENDERBUFFER, m_DepthRenderBuffer);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, backingWidth, backingHeight);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_DepthRenderBuffer);
-    
+
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
         LOG_ERROR_AND_THROW("Failed to make complete framebuffer object %x", glCheckFramebufferStatus(GL_FRAMEBUFFER));
     }
 }
-    
-void SwapChainGLIOS::Resize( Uint32 NewWidth, Uint32 NewHeight )
+
+void SwapChainGLIOS::Resize( Uint32 NewWidth, Uint32 NewHeight, SURFACE_TRANSFORM NewTransform )
 {
     InitRenderBuffers(false, NewWidth, NewHeight);
-    
-    if( TSwapChainBase::Resize( NewWidth, NewHeight ) )
-    {
-        auto pDeviceContext = m_wpDeviceContext.Lock();
-        VERIFY( pDeviceContext, "Immediate context has been released" );
-        if( pDeviceContext )
-        {
-            auto *pImmediateCtxGL = ValidatedCast<DeviceContextGLImpl>( pDeviceContext.RawPtr() );
-            bool bIsDefaultFBBound = pImmediateCtxGL->IsDefaultFBBound();
-            
-            // To update the viewport is the only thing we need to do in OpenGL
-            if( bIsDefaultFBBound )
-            {
-                // Update viewport
-                pImmediateCtxGL->SetViewports( 1, nullptr, 0, 0 );
-            }
-        }
-    }
+    TSwapChainGLBase::Resize(NewWidth, NewHeight, NewTransform, 0);
 }
 
 GLuint SwapChainGLIOS::GetDefaultFBO()const

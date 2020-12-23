@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including neVkigence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -23,39 +27,52 @@
 
 #include "pch.h"
 
-#include "FenceVkImpl.h"
+#include "FenceVkImpl.hpp"
 #include "EngineMemory.h"
-#include "RenderDeviceVkImpl.h"
+#include "RenderDeviceVkImpl.hpp"
 
 namespace Diligent
 {
-    
-FenceVkImpl :: FenceVkImpl(IReferenceCounters* pRefCounters,
-                           RenderDeviceVkImpl* pRendeDeviceVkImpl,
-                           const FenceDesc&    Desc,
-                           bool                IsDeviceInternal) : 
-    TFenceBase(pRefCounters, pRendeDeviceVkImpl, Desc, IsDeviceInternal),
-    m_FencePool(pRendeDeviceVkImpl->GetLogicalDevice().GetSharedPtr())
+
+FenceVkImpl::FenceVkImpl(IReferenceCounters* pRefCounters,
+                         RenderDeviceVkImpl* pRendeDeviceVkImpl,
+                         const FenceDesc&    Desc,
+                         bool                IsDeviceInternal) :
+    // clang-format off
+    TFenceBase
+    {
+        pRefCounters,
+        pRendeDeviceVkImpl,
+        Desc,
+        IsDeviceInternal
+    },
+    m_FencePool{pRendeDeviceVkImpl->GetLogicalDevice().GetSharedPtr()}
+// clang-format on
 {
 }
 
-FenceVkImpl :: ~FenceVkImpl()
+FenceVkImpl::~FenceVkImpl()
 {
-    while (!m_PendingFences.empty())
+    if (!m_PendingFences.empty())
     {
-        m_FencePool.DisposeFence(std::move(m_PendingFences.front().second));
-        m_PendingFences.pop_front();
+        LOG_INFO_MESSAGE("FenceVkImpl::~FenceVkImpl(): waiting for ", m_PendingFences.size(), " pending Vulkan ",
+                         (m_PendingFences.size() > 1 ? "fences." : "fence."));
+        // Vulkan spec states that all queue submission commands that refer to
+        // a fence must have completed execution before the fence is destroyed.
+        // (https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#VUID-vkDestroyFence-fence-01120)
+        Wait(UINT64_MAX);
     }
 }
 
-Uint64 FenceVkImpl :: GetCompletedValue()
+Uint64 FenceVkImpl::GetCompletedValue()
 {
     const auto& LogicalDevice = m_pDevice->GetLogicalDevice();
     while (!m_PendingFences.empty())
     {
         auto& Value_Fence = m_PendingFences.front();
+
         auto status = LogicalDevice.GetFenceStatus(Value_Fence.second);
-        if(status == VK_SUCCESS)
+        if (status == VK_SUCCESS)
         {
             if (Value_Fence.first > m_LastCompletedFenceValue)
                 m_LastCompletedFenceValue = Value_Fence.first;
@@ -71,7 +88,7 @@ Uint64 FenceVkImpl :: GetCompletedValue()
     return m_LastCompletedFenceValue;
 }
 
-void FenceVkImpl :: Reset(Uint64 Value)
+void FenceVkImpl::Reset(Uint64 Value)
 {
     DEV_CHECK_ERR(Value >= m_LastCompletedFenceValue, "Resetting fence '", m_Desc.Name, "' to the value (", Value, ") that is smaller than the last completed value (", m_LastCompletedFenceValue, ")");
     if (Value > m_LastCompletedFenceValue)
@@ -79,25 +96,31 @@ void FenceVkImpl :: Reset(Uint64 Value)
 }
 
 
-void FenceVkImpl :: Wait()
+void FenceVkImpl::Wait(Uint64 Value)
 {
     const auto& LogicalDevice = m_pDevice->GetLogicalDevice();
-    for (auto& val_fence : m_PendingFences)
+    while (!m_PendingFences.empty())
     {
-        while (LogicalDevice.GetFenceStatus(val_fence.second) != VK_SUCCESS)
-        {
-            VkFence FenceToWait = val_fence.second;
-            auto res = vkWaitForFences(LogicalDevice.GetVkDevice(), 1, &FenceToWait, VK_TRUE, UINT64_MAX);
-            VERIFY_EXPR(res == VK_SUCCESS);
-        }
+        auto& val_fence = m_PendingFences.front();
+        if (val_fence.first > Value)
+            break;
 
         auto status = LogicalDevice.GetFenceStatus(val_fence.second);
-        VERIFY(status == VK_SUCCESS, "All pending fences must now be complete!");
+        if (status == VK_NOT_READY)
+        {
+            VkFence FenceToWait = val_fence.second;
+
+            status = LogicalDevice.WaitForFences(1, &FenceToWait, VK_TRUE, UINT64_MAX);
+        }
+
+        DEV_CHECK_ERR(status == VK_SUCCESS, "All pending fences must now be complete!");
+        (void)status;
         if (val_fence.first > m_LastCompletedFenceValue)
             m_LastCompletedFenceValue = val_fence.first;
         m_FencePool.DisposeFence(std::move(val_fence.second));
+
+        m_PendingFences.pop_front();
     }
-    m_PendingFences.clear();
 }
 
-}
+} // namespace Diligent

@@ -1,4 +1,4 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*     Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -26,21 +26,21 @@
 
 #import <Foundation/Foundation.h>
 
-#include "AppleDebug.h"
-#include "FormatMessage.h"
+#include "AppleDebug.hpp"
+#include "FormatString.hpp"
 
 using namespace Diligent;
 
 void AppleDebug :: AssertionFailed( const Char *Message, const char *Function, const char *File, int Line )
 {
     auto AssertionFailedMessage = FormatAssertionFailedMessage(Message, Function, File, Line);
-    OutputDebugMessage(DebugMessageSeverity::Error, AssertionFailedMessage.c_str(), nullptr, nullptr, 0);
+    OutputDebugMessage(DEBUG_MESSAGE_SEVERITY_ERROR, AssertionFailedMessage.c_str(), nullptr, nullptr, 0);
 
     raise( SIGTRAP );
 };
 
 
-void AppleDebug::OutputDebugMessage(DebugMessageSeverity Severity, const Char *Message, const char *Function, const char *File, int Line)
+void AppleDebug::OutputDebugMessage(DEBUG_MESSAGE_SEVERITY Severity, const Char *Message, const char *Function, const char *File, int Line)
 {
     auto msg = FormatDebugMessage(Severity, Message, Function, File, Line);
     // NSLog truncates the log at 1024 symbols

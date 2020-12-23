@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -25,23 +29,22 @@
 
 #include "BasicTypes.h"
 
-namespace Diligent
-{
+DILIGENT_BEGIN_NAMESPACE(Diligent)
 
 /// Describes debug message severity
-enum class DebugMessageSeverity : Int32
+enum DEBUG_MESSAGE_SEVERITY
 {
     /// Information message
-    Info = 0,
+    DEBUG_MESSAGE_SEVERITY_INFO = 0,
 
     /// Warning message
-    Warning,
+    DEBUG_MESSAGE_SEVERITY_WARNING,
 
     /// Error, with potential recovery
-    Error,
+    DEBUG_MESSAGE_SEVERITY_ERROR,
 
     /// Fatal error - recovery is not possible
-    FatalError
+    DEBUG_MESSAGE_SEVERITY_FATAL_ERROR
 };
 
 
@@ -52,7 +55,11 @@ enum class DebugMessageSeverity : Int32
 /// \param [in] Function - Name of the function or nullptr
 /// \param [in] Function - File name or nullptr
 /// \param [in] Line - Line number
-using DebugMessageCallbackType = void(*)(DebugMessageSeverity Severity, const Char* Message, const char* Function, const char* File, int Line);
+typedef void (*DebugMessageCallbackType)(enum DEBUG_MESSAGE_SEVERITY Severity,
+                                         const Char*                 Message,
+                                         const Char*                 Function,
+                                         const Char*                 File,
+                                         int                         Line);
 extern DebugMessageCallbackType DebugMessageCallback;
 
 
@@ -62,4 +69,4 @@ extern DebugMessageCallbackType DebugMessageCallback;
 ///       wants to use the callback.
 void SetDebugMessageCallback(DebugMessageCallbackType DbgMessageCallback);
 
-}
+DILIGENT_END_NAMESPACE // namespace Diligent

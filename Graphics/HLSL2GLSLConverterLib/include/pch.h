@@ -35,12 +35,9 @@
 #include <unordered_set>
 #include <algorithm>
 
-#include "Errors.h"
+#include "Errors.hpp"
 #include "PlatformDefinitions.h"
-#include "RefCntAutoPtr.h"
-#include "DebugUtilities.h"
-#include "ValidatedCast.h"
+#include "RefCntAutoPtr.hpp"
+#include "DebugUtilities.hpp"
+#include "ValidatedCast.hpp"
 #include "RenderDevice.h"
-
-using namespace Diligent;
-using namespace std;

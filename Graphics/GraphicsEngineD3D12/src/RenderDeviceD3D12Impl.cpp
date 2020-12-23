@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -22,137 +26,409 @@
  */
 
 #include "pch.h"
-#include "RenderDeviceD3D12Impl.h"
-#include "PipelineStateD3D12Impl.h"
-#include "ShaderD3D12Impl.h"
-#include "TextureD3D12Impl.h"
-#include "DXGITypeConversions.h"
-#include "SamplerD3D12Impl.h"
-#include "BufferD3D12Impl.h"
-#include "ShaderResourceBindingD3D12Impl.h"
-#include "DeviceContextD3D12Impl.h"
-#include "FenceD3D12Impl.h"
-
+#include <dxgi1_4.h>
+#include "RenderDeviceD3D12Impl.hpp"
+#include "PipelineStateD3D12Impl.hpp"
+#include "ShaderD3D12Impl.hpp"
+#include "TextureD3D12Impl.hpp"
+#include "DXGITypeConversions.hpp"
+#include "SamplerD3D12Impl.hpp"
+#include "BufferD3D12Impl.hpp"
+#include "ShaderResourceBindingD3D12Impl.hpp"
+#include "DeviceContextD3D12Impl.hpp"
+#include "FenceD3D12Impl.hpp"
+#include "QueryD3D12Impl.hpp"
+#include "RenderPassD3D12Impl.hpp"
+#include "FramebufferD3D12Impl.hpp"
+#include "BottomLevelASD3D12Impl.hpp"
+#include "TopLevelASD3D12Impl.hpp"
+#include "ShaderBindingTableD3D12Impl.hpp"
 #include "EngineMemory.h"
+
 namespace Diligent
 {
 
-RenderDeviceD3D12Impl :: RenderDeviceD3D12Impl(IReferenceCounters*          pRefCounters,
-                                               IMemoryAllocator&            RawMemAllocator,
-                                               const EngineD3D12Attribs&    CreationAttribs,
-                                               ID3D12Device*                pd3d12Device,
-                                               ICommandQueueD3D12*          pCmdQueue,
-                                               Uint32                       NumDeferredContexts) : 
+static CComPtr<IDXGIAdapter1> DXGIAdapterFromD3D12Device(ID3D12Device* pd3d12Device)
+{
+    CComPtr<IDXGIFactory4> pDXIFactory;
+
+    HRESULT hr = CreateDXGIFactory1(__uuidof(pDXIFactory), reinterpret_cast<void**>(static_cast<IDXGIFactory4**>(&pDXIFactory)));
+    if (SUCCEEDED(hr))
+    {
+        auto AdapterLUID = pd3d12Device->GetAdapterLuid();
+
+        CComPtr<IDXGIAdapter1> pDXGIAdapter1;
+        pDXIFactory->EnumAdapterByLuid(AdapterLUID, __uuidof(pDXGIAdapter1), reinterpret_cast<void**>(static_cast<IDXGIAdapter1**>(&pDXGIAdapter1)));
+        return pDXGIAdapter1;
+    }
+    else
+    {
+        LOG_ERROR("Unable to create DXIFactory");
+    }
+    return nullptr;
+}
+
+
+static D3D_FEATURE_LEVEL GetD3DFeatureLevel(ID3D12Device* pd3d12Device)
+{
+    D3D_FEATURE_LEVEL FeatureLevels[] =
+        {
+            D3D_FEATURE_LEVEL_12_1,
+            D3D_FEATURE_LEVEL_12_0,
+            D3D_FEATURE_LEVEL_11_1,
+            D3D_FEATURE_LEVEL_11_0,
+            D3D_FEATURE_LEVEL_10_1,
+            D3D_FEATURE_LEVEL_10_0 //
+        };
+    D3D12_FEATURE_DATA_FEATURE_LEVELS FeatureLevelsData = {};
+
+    FeatureLevelsData.pFeatureLevelsRequested = FeatureLevels;
+    FeatureLevelsData.NumFeatureLevels        = _countof(FeatureLevels);
+    pd3d12Device->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &FeatureLevelsData, sizeof(FeatureLevelsData));
+    return FeatureLevelsData.MaxSupportedFeatureLevel;
+}
+
+ID3D12Device2* RenderDeviceD3D12Impl::GetD3D12Device2()
+{
+    if (!m_pd3d12Device2)
+    {
+        CHECK_D3D_RESULT_THROW(m_pd3d12Device->QueryInterface(IID_PPV_ARGS(&m_pd3d12Device2)), "Failed to get ID3D12Device2");
+    }
+    return m_pd3d12Device2;
+}
+
+ID3D12Device5* RenderDeviceD3D12Impl::GetD3D12Device5()
+{
+    if (!m_pd3d12Device5)
+    {
+        CHECK_D3D_RESULT_THROW(m_pd3d12Device->QueryInterface(IID_PPV_ARGS(&m_pd3d12Device5)), "Failed to get ID3D12Device5");
+    }
+    return m_pd3d12Device5;
+}
+
+RenderDeviceD3D12Impl::RenderDeviceD3D12Impl(IReferenceCounters*          pRefCounters,
+                                             IMemoryAllocator&            RawMemAllocator,
+                                             IEngineFactory*              pEngineFactory,
+                                             const EngineD3D12CreateInfo& EngineCI,
+                                             ID3D12Device*                pd3d12Device,
+                                             size_t                       CommandQueueCount,
+                                             ICommandQueueD3D12**         ppCmdQueues) :
+    // clang-format off
     TRenderDeviceBase
     {
         pRefCounters,
         RawMemAllocator,
-        NumDeferredContexts,
-        sizeof(TextureD3D12Impl),
-        sizeof(TextureViewD3D12Impl),
-        sizeof(BufferD3D12Impl),
-        sizeof(BufferViewD3D12Impl),
-        sizeof(ShaderD3D12Impl),
-        sizeof(SamplerD3D12Impl),
-        sizeof(PipelineStateD3D12Impl),
-        sizeof(ShaderResourceBindingD3D12Impl),
-        sizeof(FenceD3D12Impl)
+        pEngineFactory,
+        CommandQueueCount,
+        ppCmdQueues,
+        EngineCI.NumDeferredContexts,
+        DeviceObjectSizes
+        {
+            sizeof(TextureD3D12Impl),
+            sizeof(TextureViewD3D12Impl),
+            sizeof(BufferD3D12Impl),
+            sizeof(BufferViewD3D12Impl),
+            sizeof(ShaderD3D12Impl),
+            sizeof(SamplerD3D12Impl),
+            sizeof(PipelineStateD3D12Impl),
+            sizeof(ShaderResourceBindingD3D12Impl),
+            sizeof(FenceD3D12Impl),
+            sizeof(QueryD3D12Impl),
+            sizeof(RenderPassD3D12Impl),
+            sizeof(FramebufferD3D12Impl),
+            sizeof(BottomLevelASD3D12Impl),
+            sizeof(TopLevelASD3D12Impl),
+            sizeof(ShaderBindingTableD3D12Impl)
+        }
     },
-    m_pd3d12Device  (pd3d12Device),
-    m_pCommandQueue (pCmdQueue),
-    m_EngineAttribs (CreationAttribs),
-	m_FrameNumber      (0),
-    m_NextCmdListNumber(0),
-    m_CmdListManager(this),
+    m_pd3d12Device  {pd3d12Device},
+    m_EngineAttribs {EngineCI    },
+    m_CmdListManager{*this       },
     m_CPUDescriptorHeaps
     {
-        {RawMemAllocator, this, CreationAttribs.CPUDescriptorHeapAllocationSize[0], D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE},
-        {RawMemAllocator, this, CreationAttribs.CPUDescriptorHeapAllocationSize[1], D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,     D3D12_DESCRIPTOR_HEAP_FLAG_NONE},
-        {RawMemAllocator, this, CreationAttribs.CPUDescriptorHeapAllocationSize[2], D3D12_DESCRIPTOR_HEAP_TYPE_RTV,         D3D12_DESCRIPTOR_HEAP_FLAG_NONE},
-        {RawMemAllocator, this, CreationAttribs.CPUDescriptorHeapAllocationSize[3], D3D12_DESCRIPTOR_HEAP_TYPE_DSV,         D3D12_DESCRIPTOR_HEAP_FLAG_NONE}
+        {RawMemAllocator, *this, EngineCI.CPUDescriptorHeapAllocationSize[0], D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE},
+        {RawMemAllocator, *this, EngineCI.CPUDescriptorHeapAllocationSize[1], D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,     D3D12_DESCRIPTOR_HEAP_FLAG_NONE},
+        {RawMemAllocator, *this, EngineCI.CPUDescriptorHeapAllocationSize[2], D3D12_DESCRIPTOR_HEAP_TYPE_RTV,         D3D12_DESCRIPTOR_HEAP_FLAG_NONE},
+        {RawMemAllocator, *this, EngineCI.CPUDescriptorHeapAllocationSize[3], D3D12_DESCRIPTOR_HEAP_TYPE_DSV,         D3D12_DESCRIPTOR_HEAP_FLAG_NONE}
     },
     m_GPUDescriptorHeaps
     {
-        {RawMemAllocator, this, CreationAttribs.GPUDescriptorHeapSize[0], CreationAttribs.GPUDescriptorHeapDynamicSize[0], D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE},
-        {RawMemAllocator, this, CreationAttribs.GPUDescriptorHeapSize[1], CreationAttribs.GPUDescriptorHeapDynamicSize[1], D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,     D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE}
+        {RawMemAllocator, *this, EngineCI.GPUDescriptorHeapSize[0], EngineCI.GPUDescriptorHeapDynamicSize[0], D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE},
+        {RawMemAllocator, *this, EngineCI.GPUDescriptorHeapSize[1], EngineCI.GPUDescriptorHeapDynamicSize[1], D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,     D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE}
     },
-	m_DynamicDescriptorAllocationChunkSize
-	{
-		CreationAttribs.DynamicDescriptorAllocationChunkSize[0], // D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
-		CreationAttribs.DynamicDescriptorAllocationChunkSize[1]  // D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
-	},
-    m_ContextPool(STD_ALLOCATOR_RAW_MEM(ContextPoolElemType, GetRawAllocator(), "Allocator for vector<unique_ptr<CommandContext>>")),
-    m_AvailableContexts(STD_ALLOCATOR_RAW_MEM(CommandContext*, GetRawAllocator(), "Allocator for vector<CommandContext*>")),
-    m_UploadHeaps(STD_ALLOCATOR_RAW_MEM(UploadHeapPoolElemType, GetRawAllocator(), "Allocator for vector<unique_ptr<DynamicUploadHeap>>")),
-    m_ReleaseQueue(GetRawAllocator())
+    m_ContextPool         (STD_ALLOCATOR_RAW_MEM(PooledCommandContext, GetRawAllocator(), "Allocator for vector<PooledCommandContext>")),
+    m_DynamicMemoryManager{GetRawAllocator(), *this, EngineCI.NumDynamicHeapPagesToReserve, EngineCI.DynamicHeapPageSize},
+    m_MipsGenerator       {pd3d12Device},
+    m_QueryMgr            {pd3d12Device, EngineCI.QueryPoolSizes},
+    m_pDxCompiler         {CreateDXCompiler(DXCompilerTarget::Direct3D12, EngineCI.pDxCompilerPath)}
+// clang-format on
 {
-    m_DeviceCaps.DevType = DeviceType::D3D12;
-    m_DeviceCaps.MajorVersion = 12;
-    m_DeviceCaps.MinorVersion = 0;
-    m_DeviceCaps.bSeparableProgramSupported = True;
-    m_DeviceCaps.bMultithreadedResourceCreationSupported = True;
+    static_assert(sizeof(DeviceObjectSizes) == sizeof(size_t) * 15, "Please add new objects to DeviceObjectSizes constructor");
+
+    // set device properties
+    {
+        static_assert(sizeof(DeviceProperties) == sizeof(Uint32) * 1, "Please set new properties below");
+        m_DeviceProperties.MaxRayTracingRecursionDepth = D3D12_RAYTRACING_MAX_DECLARABLE_TRACE_RECURSION_DEPTH;
+    }
+
+    try
+    {
+        m_DeviceCaps.DevType = RENDER_DEVICE_TYPE_D3D12;
+        auto FeatureLevel    = GetD3DFeatureLevel(m_pd3d12Device);
+        switch (FeatureLevel)
+        {
+            case D3D_FEATURE_LEVEL_12_0:
+            case D3D_FEATURE_LEVEL_12_1:
+                m_DeviceCaps.MajorVersion = 12;
+                m_DeviceCaps.MinorVersion = FeatureLevel == D3D_FEATURE_LEVEL_12_1 ? 1 : 0;
+                break;
+
+            case D3D_FEATURE_LEVEL_11_0:
+            case D3D_FEATURE_LEVEL_11_1:
+                m_DeviceCaps.MajorVersion = 11;
+                m_DeviceCaps.MinorVersion = FeatureLevel == D3D_FEATURE_LEVEL_11_1 ? 1 : 0;
+                break;
+
+            case D3D_FEATURE_LEVEL_10_0:
+            case D3D_FEATURE_LEVEL_10_1:
+                m_DeviceCaps.MajorVersion = 10;
+                m_DeviceCaps.MinorVersion = FeatureLevel == D3D_FEATURE_LEVEL_10_1 ? 1 : 0;
+                break;
+
+            default:
+                UNEXPECTED("Unexpected D3D feature level");
+        }
+
+        if (auto pDXGIAdapter1 = DXGIAdapterFromD3D12Device(pd3d12Device))
+        {
+            ReadAdapterInfo(pDXGIAdapter1);
+        }
+
+        // Direct3D12 supports shader model 5.1 on all feature levels (even on 11.0),
+        // so bindless resources are always available.
+        // https://docs.microsoft.com/en-us/windows/win32/direct3d12/hardware-feature-levels#feature-level-support
+        m_DeviceCaps.Features.BindlessResources = DEVICE_FEATURE_STATE_ENABLED;
+
+        m_DeviceCaps.Features.VertexPipelineUAVWritesAndAtomics = DEVICE_FEATURE_STATE_ENABLED;
+
+        // Detect maximum  shader model.
+        D3D_SHADER_MODEL MaxShaderModel = D3D_SHADER_MODEL_5_1;
+        {
+            // Direct3D12 supports shader model 5.1 on all feature levels.
+            // https://docs.microsoft.com/en-us/windows/win32/direct3d12/hardware-feature-levels#feature-level-support
+            MaxShaderModel = D3D_SHADER_MODEL_5_1;
+
+            // Header may not have constants for D3D_SHADER_MODEL_6_1 and above.
+            const D3D_SHADER_MODEL Models[] = //
+                {
+                    static_cast<D3D_SHADER_MODEL>(0x65), // minimum required for mesh shader and DXR 1.1
+                    static_cast<D3D_SHADER_MODEL>(0x64),
+                    static_cast<D3D_SHADER_MODEL>(0x63), // minimum required for DXR 1.0
+                    static_cast<D3D_SHADER_MODEL>(0x62),
+                    static_cast<D3D_SHADER_MODEL>(0x61),
+                    D3D_SHADER_MODEL_6_0 //
+                };
+
+            for (auto Model : Models)
+            {
+                D3D12_FEATURE_DATA_SHADER_MODEL ShaderModel = {Model};
+                if (SUCCEEDED(m_pd3d12Device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &ShaderModel, sizeof(ShaderModel))))
+                {
+                    MaxShaderModel = ShaderModel.HighestShaderModel;
+                    break;
+                }
+            }
+            LOG_INFO_MESSAGE("Max device shader model: ", (MaxShaderModel >> 4) & 0xF, '_', MaxShaderModel & 0xF);
+        }
+
+        m_Properties.MaxShaderVersion.Major = static_cast<Uint8>((MaxShaderModel >> 4) & 0xF);
+        m_Properties.MaxShaderVersion.Minor = static_cast<Uint8>(MaxShaderModel & 0xF);
+
+        // Check if mesh shader is supported.
+        bool MeshShadersSupported = false;
+#ifdef D3D12_H_HAS_MESH_SHADER
+        {
+            D3D12_FEATURE_DATA_D3D12_OPTIONS7 FeatureData = {};
+
+            MeshShadersSupported =
+                SUCCEEDED(m_pd3d12Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &FeatureData, sizeof(FeatureData))) &&
+                FeatureData.MeshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED;
+
+            MeshShadersSupported = (MaxShaderModel >= D3D_SHADER_MODEL_6_5 && MeshShadersSupported);
+        }
+#else
+        if (EngineCI.Features.MeshShaders == DEVICE_FEATURE_STATE_ENABLED)
+        {
+            LOG_ERROR_AND_THROW("Mesh shaders are requested to be enabled, but the engine was built with the Windows SDK that does "
+                                "not support the feature. Please update the SDK to version 10.0.19041.0 or later and rebuild the engine.");
+        }
+#endif
+
+        if (EngineCI.Features.MeshShaders == DEVICE_FEATURE_STATE_ENABLED && !MeshShadersSupported)
+        {
+            LOG_ERROR_AND_THROW("This device/driver does not support mesh shaders. Please make sure that you have compatible GPU and that your "
+                                "Winodws is up to date (version 2004 or later is required)");
+        }
+
+        m_DeviceCaps.Features.MeshShaders = MeshShadersSupported ? DEVICE_FEATURE_STATE_ENABLED : DEVICE_FEATURE_STATE_DISABLED;
+
+        {
+            D3D12_FEATURE_DATA_D3D12_OPTIONS5 d3d12Features = {};
+            if (SUCCEEDED(m_pd3d12Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &d3d12Features, sizeof(d3d12Features))))
+            {
+                if (d3d12Features.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0)
+                {
+                    m_DeviceCaps.Features.RayTracing = DEVICE_FEATURE_STATE_ENABLED;
+                }
+            }
+        }
+
+        {
+            D3D12_FEATURE_DATA_D3D12_OPTIONS d3d12Features = {};
+            if (SUCCEEDED(m_pd3d12Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &d3d12Features, sizeof(d3d12Features))))
+            {
+                if (d3d12Features.MinPrecisionSupport & D3D12_SHADER_MIN_PRECISION_SUPPORT_16_BIT)
+                {
+                    m_DeviceCaps.Features.ShaderFloat16 = DEVICE_FEATURE_STATE_ENABLED;
+                }
+            }
+        }
+
+        {
+            D3D12_FEATURE_DATA_D3D12_OPTIONS4 d3d12Features4 = {};
+            if (SUCCEEDED(m_pd3d12Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS4, &d3d12Features4, sizeof(d3d12Features4))))
+            {
+                if (d3d12Features4.Native16BitShaderOpsSupported)
+                {
+                    m_DeviceCaps.Features.ResourceBuffer16BitAccess = DEVICE_FEATURE_STATE_ENABLED;
+                    m_DeviceCaps.Features.UniformBuffer16BitAccess  = DEVICE_FEATURE_STATE_ENABLED;
+                    m_DeviceCaps.Features.ShaderInputOutput16       = DEVICE_FEATURE_STATE_ENABLED;
+                }
+            }
+        }
+
+#define CHECK_REQUIRED_FEATURE(Feature, FeatureName)                          \
+    do                                                                        \
+    {                                                                         \
+        if (EngineCI.Features.Feature == DEVICE_FEATURE_STATE_ENABLED &&      \
+            m_DeviceCaps.Features.Feature != DEVICE_FEATURE_STATE_ENABLED)    \
+            LOG_ERROR_AND_THROW(FeatureName, "not supported by this device"); \
+    } while (false)
+
+        // clang-format off
+        CHECK_REQUIRED_FEATURE(ShaderFloat16,             "16-bit float shader operations are");
+        CHECK_REQUIRED_FEATURE(ResourceBuffer16BitAccess, "16-bit resoure buffer access is");
+        CHECK_REQUIRED_FEATURE(UniformBuffer16BitAccess,  "16-bit uniform buffer access is");
+        CHECK_REQUIRED_FEATURE(ShaderInputOutput16,       "16-bit shader inputs/outputs are");
+
+        CHECK_REQUIRED_FEATURE(ShaderInt8,               "8-bit shader operations are");
+        CHECK_REQUIRED_FEATURE(ResourceBuffer8BitAccess, "8-bit resoure buffer access is");
+        CHECK_REQUIRED_FEATURE(UniformBuffer8BitAccess,  "8-bit uniform buffer access is");
+
+        CHECK_REQUIRED_FEATURE(RayTracing,               "ray tracing is");
+        // clang-format on
+#undef CHECK_REQUIRED_FEATURE
+
+#if defined(_MSC_VER) && defined(_WIN64)
+        static_assert(sizeof(DeviceFeatures) == 32, "Did you add a new feature to DeviceFeatures? Please handle its satus here.");
+#endif
+
+        auto& TexCaps = m_DeviceCaps.TexCaps;
+
+        TexCaps.MaxTexture1DDimension     = D3D12_REQ_TEXTURE1D_U_DIMENSION;
+        TexCaps.MaxTexture1DArraySlices   = D3D12_REQ_TEXTURE1D_ARRAY_AXIS_DIMENSION;
+        TexCaps.MaxTexture2DDimension     = D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+        TexCaps.MaxTexture2DArraySlices   = D3D12_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
+        TexCaps.MaxTexture3DDimension     = D3D12_REQ_TEXTURE3D_U_V_OR_W_DIMENSION;
+        TexCaps.MaxTextureCubeDimension   = D3D12_REQ_TEXTURECUBE_DIMENSION;
+        TexCaps.Texture2DMSSupported      = True;
+        TexCaps.Texture2DMSArraySupported = True;
+        TexCaps.TextureViewSupported      = True;
+        TexCaps.CubemapArraysSupported    = True;
+
+        auto& SamCaps = m_DeviceCaps.SamCaps;
+
+        SamCaps.BorderSamplingModeSupported   = True;
+        SamCaps.AnisotropicFilteringSupported = True;
+        SamCaps.LODBiasSupported              = True;
+    }
+    catch (...)
+    {
+        m_DynamicMemoryManager.Destroy();
+        throw;
+    }
 }
 
 RenderDeviceD3D12Impl::~RenderDeviceD3D12Impl()
 {
-	// Finish current frame. This will release resources taken by previous frames, and
-    // will move all stale resources to the release queues. The resources will not be
-    // release until next call to FinishFrame()
-    FinishFrame();
     // Wait for the GPU to complete all its operations
-    IdleGPU(true);
-    // Call FinishFrame() again to destroy resources in
-    // release queues
-    FinishFrame(true);
-    
-	m_ContextPool.clear();
+    IdleGPU();
+    ReleaseStaleResources(true);
+
+#ifdef DILIGENT_DEVELOPMENT
+    for (auto i = 0; i < _countof(m_CPUDescriptorHeaps); ++i)
+    {
+        DEV_CHECK_ERR(m_CPUDescriptorHeaps[i].DvpGetTotalAllocationCount() == 0, "All CPU descriptor heap allocations must be released");
+    }
+    for (auto i = 0; i < _countof(m_GPUDescriptorHeaps); ++i)
+    {
+        DEV_CHECK_ERR(m_GPUDescriptorHeaps[i].DvpGetTotalAllocationCount() == 0, "All GPU descriptor heap allocations must be released");
+    }
+#endif
+
+    DEV_CHECK_ERR(m_DynamicMemoryManager.GetAllocatedPageCounter() == 0, "All allocated dynamic pages must have been returned to the manager at this point.");
+    m_DynamicMemoryManager.Destroy();
+    DEV_CHECK_ERR(m_CmdListManager.GetAllocatorCounter() == 0, "All allocators must have been returned to the manager at this point.");
+    DEV_CHECK_ERR(m_AllocatedCtxCounter == 0, "All contexts must have been released.");
+
+    m_ContextPool.clear();
+    DestroyCommandQueues();
 }
 
-void RenderDeviceD3D12Impl::DisposeCommandContext(CommandContext* pCtx)
-{
-	std::lock_guard<std::mutex> LockGuard(m_ContextAllocationMutex);
-    m_AvailableContexts.push_back(pCtx);
-}
-
-void RenderDeviceD3D12Impl::CloseAndExecuteCommandContext(CommandContext* pCtx, bool DiscardStaleObjects, std::vector<std::pair<Uint64, RefCntAutoPtr<IFence> > >* pSignalFences)
+void RenderDeviceD3D12Impl::DisposeCommandContext(PooledCommandContext&& Ctx)
 {
     CComPtr<ID3D12CommandAllocator> pAllocator;
-	auto *pCmdList = pCtx->Close(&pAllocator);
+    Ctx->Close(pAllocator);
+    // Since allocator has not been used, we cmd list manager can put it directly into the free allocator list
+    m_CmdListManager.FreeAllocator(std::move(pAllocator));
+    FreeCommandContext(std::move(Ctx));
+}
+
+void RenderDeviceD3D12Impl::FreeCommandContext(PooledCommandContext&& Ctx)
+{
+    std::lock_guard<std::mutex> LockGuard(m_ContextPoolMutex);
+    m_ContextPool.emplace_back(std::move(Ctx));
+#ifdef DILIGENT_DEVELOPMENT
+    Atomics::AtomicDecrement(m_AllocatedCtxCounter);
+#endif
+}
+
+void RenderDeviceD3D12Impl::CloseAndExecuteTransientCommandContext(Uint32 CommandQueueIndex, PooledCommandContext&& Ctx)
+{
+    CComPtr<ID3D12CommandAllocator> pAllocator;
+    ID3D12GraphicsCommandList*      pCmdList   = Ctx->Close(pAllocator);
+    Uint64                          FenceValue = 0;
+    // Execute command list directly through the queue to avoid interference with command list numbers in the queue
+    LockCmdQueueAndRun(CommandQueueIndex,
+                       [&](ICommandQueueD3D12* pCmdQueue) //
+                       {
+                           FenceValue = pCmdQueue->Submit(pCmdList);
+                       });
+    m_CmdListManager.ReleaseAllocator(std::move(pAllocator), CommandQueueIndex, FenceValue);
+    FreeCommandContext(std::move(Ctx));
+}
+
+Uint64 RenderDeviceD3D12Impl::CloseAndExecuteCommandContext(Uint32 QueueIndex, PooledCommandContext&& Ctx, bool DiscardStaleObjects, std::vector<std::pair<Uint64, RefCntAutoPtr<IFence>>>* pSignalFences)
+{
+    CComPtr<ID3D12CommandAllocator> pAllocator;
+    ID3D12GraphicsCommandList*      pCmdList = Ctx->Close(pAllocator);
 
     Uint64 FenceValue = 0;
-    Uint64 CmdListNumber = 0;
     {
-	    std::lock_guard<std::mutex> LockGuard(m_CmdQueueMutex);
-        auto NextFenceValue = m_pCommandQueue->GetNextFenceValue();
-	    // Submit the command list to the queue
-        FenceValue = m_pCommandQueue->ExecuteCommandList(pCmdList);
-        VERIFY(FenceValue >= NextFenceValue, "Fence value of the executed command list is less than the next fence value previously queried through GetNextFenceValue()");
-        FenceValue = std::max(FenceValue, NextFenceValue);
-        CmdListNumber = m_NextCmdListNumber;
-        Atomics::AtomicIncrement(m_NextCmdListNumber);
-        if (pSignalFences != nullptr)
-        {
-            for (auto& val_fence : *pSignalFences)
-            {
-                auto* pFenceD3D12Impl = val_fence.second.RawPtr<FenceD3D12Impl>();
-                auto* pd3d12Fence = pFenceD3D12Impl->GetD3D12Fence();
-                m_pCommandQueue->SignalFence(pd3d12Fence, val_fence.first);
-            }
-        }
-    }
-
-    if (DiscardStaleObjects)
-    {
-        // The following basic requirement guarantees correctness of resource deallocation:
-        //
-        //        A resource is never released before the last draw command referencing it is invoked on the immediate context
-        //
-        // See http://diligentgraphics.com/diligent-engine/architecture/d3d12/managing-resource-lifetimes/
-
-        // Stale objects should only be discarded when submitting cmd list from 
+        // Stale objects should only be discarded when submitting cmd list from
         // the immediate context, otherwise the basic requirement may be violated
         // as in the following scenario
-        //                                                           
+        //
         //  Signaled        |                                        |
         //  Fence Value     |        Immediate Context               |            InitContext            |
         //                  |                                        |                                   |
@@ -167,460 +443,364 @@ void RenderDeviceD3D12Impl::CloseAndExecuteCommandContext(CommandContext* pCtx, 
         //                  |     N+1, but resource it references    |                                   |
         //                  |     was added to the delete queue      |                                   |
         //                  |     with number N                      |                                   |
-
-        // Move stale objects into a release queue.
-        // Note that objects are moved from stale list to release queue based on the
-        // cmd list number, not the fence value. This makes sure that basic requirement
-        // is met even when the fence value is not incremented while executing 
-        // the command list (as is the case with Unity command queue).
-        m_ReleaseQueue.DiscardStaleResources(CmdListNumber, FenceValue);
+        auto SubmittedCmdBuffInfo = TRenderDeviceBase::SubmitCommandBuffer(QueueIndex, pCmdList, true);
+        FenceValue                = SubmittedCmdBuffInfo.FenceValue;
+        if (pSignalFences != nullptr)
+            SignalFences(QueueIndex, *pSignalFences);
     }
 
-    // DiscardAllocator() is thread-safe
-	m_CmdListManager.DiscardAllocator(FenceValue, pAllocator);
-    
-    pCtx->DiscardDynamicDescriptors(FenceValue);
+    m_CmdListManager.ReleaseAllocator(std::move(pAllocator), QueueIndex, FenceValue);
+    FreeCommandContext(std::move(Ctx));
 
-    {
-	    std::lock_guard<std::mutex> LockGuard(m_ContextAllocationMutex);
-    	m_AvailableContexts.push_back(pCtx);
-    }
+    PurgeReleaseQueue(QueueIndex);
+
+    return FenceValue;
 }
 
-
-void RenderDeviceD3D12Impl::IdleGPU(bool ReleaseStaleObjects) 
-{ 
-    Uint64 FenceValue = 0;
-    Uint64 CmdListNumber = 0;
-    {
-        // Lock the command queue to avoid other threads interfering with the GPU
-        std::lock_guard<std::mutex> LockGuard(m_CmdQueueMutex);
-        FenceValue = m_pCommandQueue->GetNextFenceValue();
-        m_pCommandQueue->IdleGPU();
-        // Increment cmd list number while keeping queue locked. 
-        // This guarantees that any D3D12 object released after the lock
-        // is released, will be associated with the incremented cmd list number
-        CmdListNumber = m_NextCmdListNumber;
-        Atomics::AtomicIncrement(m_NextCmdListNumber);
-    }
-    
-    if (ReleaseStaleObjects)
-    {
-        // Do not wait until the end of the frame and force deletion. 
-        // This is necessary to release outstanding references to the
-        // swap chain buffers when it is resized in the middle of the frame.
-        // Since GPU has been idled, it it is safe to do so
-        m_ReleaseQueue.DiscardStaleResources(CmdListNumber, FenceValue);
-        m_ReleaseQueue.Purge(FenceValue);
-    }
-}
-
-Bool RenderDeviceD3D12Impl::IsFenceSignaled(Uint64 FenceValue) 
+void RenderDeviceD3D12Impl::SignalFences(Uint32 QueueIndex, std::vector<std::pair<Uint64, RefCntAutoPtr<IFence>>>& SignalFences)
 {
-    return FenceValue <= GetCompletedFenceValue();
+    for (auto& val_fence : SignalFences)
+    {
+        auto* pFenceD3D12Impl = val_fence.second.RawPtr<FenceD3D12Impl>();
+        auto* pd3d12Fence     = pFenceD3D12Impl->GetD3D12Fence();
+        m_CommandQueues[QueueIndex].CmdQueue->SignalFence(pd3d12Fence, val_fence.first);
+    }
 }
 
-Uint64 RenderDeviceD3D12Impl::GetCompletedFenceValue()
+void RenderDeviceD3D12Impl::IdleGPU()
 {
-    return m_pCommandQueue->GetCompletedFenceValue();
+    IdleAllCommandQueues(true);
+    ReleaseStaleResources();
 }
 
-void RenderDeviceD3D12Impl::FinishFrame(bool ReleaseAllResources)
+void RenderDeviceD3D12Impl::FlushStaleResources(Uint32 CmdQueueIndex)
+{
+    // Submit empty command list to the queue. This will effectively signal the fence and
+    // discard all resources
+    ID3D12GraphicsCommandList* pNullCmdList = nullptr;
+    TRenderDeviceBase::SubmitCommandBuffer(CmdQueueIndex, pNullCmdList, true);
+}
+
+void RenderDeviceD3D12Impl::ReleaseStaleResources(bool ForceRelease)
+{
+    PurgeReleaseQueues(ForceRelease);
+}
+
+
+RenderDeviceD3D12Impl::PooledCommandContext RenderDeviceD3D12Impl::AllocateCommandContext(const Char* ID)
 {
     {
-        if (auto pImmediateCtx = m_wpImmediateContext.Lock())
+        std::lock_guard<std::mutex> LockGuard(m_ContextPoolMutex);
+        if (!m_ContextPool.empty())
         {
-            auto pImmediateCtxD3D12 = pImmediateCtx.RawPtr<DeviceContextD3D12Impl>();
-            if(pImmediateCtxD3D12->GetNumCommandsInCtx() != 0)
-                LOG_ERROR_MESSAGE("There are outstanding commands in the immediate device context when finishing the frame. This is an error and may cause unpredicted behaviour. Call Flush() to submit all commands for execution before finishing the frame");
-        }
-
-        for (auto wpDeferredCtx : m_wpDeferredContexts)
-        {
-            if (auto pDeferredCtx = wpDeferredCtx.Lock())
-            {
-                auto pDeferredCtxD3D12 = pDeferredCtx.RawPtr<DeviceContextD3D12Impl>();
-                if(pDeferredCtxD3D12->GetNumCommandsInCtx() != 0)
-                    LOG_ERROR_MESSAGE("There are outstanding commands in the deferred device context when finishing the frame. This is an error and may cause unpredicted behaviour. Close all deferred contexts and execute them before finishing the frame");
-            }
-        }
-    }
-    
-    auto CompletedFenceValue = ReleaseAllResources ? std::numeric_limits<Uint64>::max() : GetCompletedFenceValue();
-
-    // We must use NextFenceValue here, NOT current value, because the 
-    // fence value may or may not have been incremented when the last 
-    // command list was submitted for execution (Unity only
-    // increments fence value once per frame)
-    Uint64 NextFenceValue = 0;
-    Uint64 CmdListNumber = 0;
-    {
-        // Lock the command queue to avoid other threads interfering with the GPU
-        std::lock_guard<std::mutex> LockGuard(m_CmdQueueMutex);
-        NextFenceValue = m_pCommandQueue->GetNextFenceValue();
-        // Increment cmd list number while keeping queue locked. 
-        // This guarantees that any D3D12 object released after the lock
-        // is released, will be associated with the incremented cmd list number
-        CmdListNumber = m_NextCmdListNumber;
-        Atomics::AtomicIncrement(m_NextCmdListNumber);
-    }
-
-    {
-        // There is no need to lock as new heaps are only created during initialization
-        // time for every context
-        //std::lock_guard<std::mutex> LockGuard(m_UploadHeapMutex);
-        
-        // Upload heaps are used to update resource contents as well as to allocate
-        // space for dynamic resources.
-        // Initial resource data is uploaded using temporary one-time upload buffers, 
-        // so can be performed in parallel across frame boundaries
-        for (auto &UploadHeap : m_UploadHeaps)
-        {
-            // Currently upload heaps are free-threaded, so other threads must not allocate
-            // resources at the same time. This means that all dynamic buffers must be unmaped 
-            // in the same frame and all resources must be updated within boundaries of a single frame.
-            //
-            //    worker thread 3    | pDevice->CrateTexture(InitData) |    | pDevice->CrateBuffer(InitData) |    | pDevice->CrateTexture(InitData) |
-            //                                                                                               
-            //    worker thread 2     | pDfrdCtx2->UpdateResource()  |                                              ||
-            //                                                                                                      ||
-            //    worker thread 1       |  pDfrdCtx1->Map(WRITE_DISCARD) |    | pDfrdCtx1->UpdateResource()  |      ||
-            //                                                                                                      ||
-            //    main thread        |  pCtx->Map(WRITE_DISCARD )|  | pCtx->UpdateResource()  |                     ||   | Present() |
-            //
-            //
-            
-            UploadHeap->FinishFrame(NextFenceValue, CompletedFenceValue);
-        }
-    }
-
-    for(Uint32 CPUHeap=0; CPUHeap < _countof(m_CPUDescriptorHeaps); ++CPUHeap)
-    {
-        // This is OK if other thread disposes descriptor heap allocation at this time
-        // The allocation will be registered as part of the current frame
-        m_CPUDescriptorHeaps[CPUHeap].ReleaseStaleAllocations(CompletedFenceValue);
-    }
-        
-    for(Uint32 GPUHeap=0; GPUHeap < _countof(m_GPUDescriptorHeaps); ++GPUHeap)
-    {
-        m_GPUDescriptorHeaps[GPUHeap].ReleaseStaleAllocations(CompletedFenceValue);
-    }
-
-    // Discard all remaining objects. This is important to do if there were 
-    // no command lists submitted during the frame
-    m_ReleaseQueue.DiscardStaleResources(CmdListNumber, NextFenceValue);
-    m_ReleaseQueue.Purge(CompletedFenceValue);
-
-    Atomics::AtomicIncrement(m_FrameNumber);
-}
-
-DynamicUploadHeap* RenderDeviceD3D12Impl::RequestUploadHeap()
-{
-    std::lock_guard<std::mutex> LockGuard(m_UploadHeapMutex);
-
-#ifdef _DEBUG
-    size_t InitialSize = 1024+64;
-#else
-    size_t InitialSize = 64<<10;//16<<20;
+            PooledCommandContext Ctx = std::move(m_ContextPool.back());
+            m_ContextPool.pop_back();
+            Ctx->Reset(m_CmdListManager);
+            Ctx->SetID(ID);
+#ifdef DILIGENT_DEVELOPMENT
+            Atomics::AtomicIncrement(m_AllocatedCtxCounter);
 #endif
+            return Ctx;
+        }
+    }
 
-    auto &UploadHeapAllocator = GetRawAllocator();
-    auto *pRawMem = ALLOCATE(UploadHeapAllocator, "DynamicUploadHeap instance", sizeof(DynamicUploadHeap));
-    auto *pNewHeap = new (pRawMem) DynamicUploadHeap(GetRawAllocator(), true, this, InitialSize);
-    m_UploadHeaps.emplace_back( pNewHeap, STDDeleterRawMem<DynamicUploadHeap>(UploadHeapAllocator) );
-    return pNewHeap;
+    auto& CmdCtxAllocator = GetRawAllocator();
+    auto* pRawMem         = ALLOCATE(CmdCtxAllocator, "CommandContext instance", CommandContext, 1);
+    auto  pCtx            = new (pRawMem) CommandContext(m_CmdListManager);
+    pCtx->SetID(ID);
+#ifdef DILIGENT_DEVELOPMENT
+    Atomics::AtomicIncrement(m_AllocatedCtxCounter);
+#endif
+    return PooledCommandContext(pCtx, CmdCtxAllocator);
 }
 
-void RenderDeviceD3D12Impl::ReleaseUploadHeap(DynamicUploadHeap* pUploadHeap)
+
+void RenderDeviceD3D12Impl::TestTextureFormat(TEXTURE_FORMAT TexFormat)
 {
-
-}
-
-CommandContext* RenderDeviceD3D12Impl::AllocateCommandContext(const Char* ID)
-{
-	std::lock_guard<std::mutex> LockGuard(m_ContextAllocationMutex);
-
-	CommandContext* ret = nullptr;
-	if (m_AvailableContexts.empty())
-	{
-        auto &CmdCtxAllocator = GetRawAllocator();
-        auto *pRawMem = ALLOCATE(CmdCtxAllocator, "CommandContext instance", sizeof(CommandContext));
-		ret = new (pRawMem) CommandContext( GetRawAllocator(), m_CmdListManager, m_GPUDescriptorHeaps, m_DynamicDescriptorAllocationChunkSize);
-		m_ContextPool.emplace_back(ret, STDDeleterRawMem<CommandContext>(CmdCtxAllocator) );
-	}
-	else
-	{
-		ret = m_AvailableContexts.front();
-		m_AvailableContexts.pop_front();
-		ret->Reset(m_CmdListManager);
-	}
-	VERIFY_EXPR(ret != nullptr);
-	ret->SetID(ID);
-	//if ( ID != nullptr && *ID != 0 )
-	//	EngineProfiling::BeginBlock(ID, NewContext);
-
-	return ret;
-}
-
-void RenderDeviceD3D12Impl::SafeReleaseD3D12Object(ID3D12Object* pObj)
-{
-    // When D3D12 object is released, it is first moved into the
-    // stale objects list. The list is moved into a release queue
-    // when the next command list is executed. 
-    m_ReleaseQueue.SafeReleaseResource(CComPtr<ID3D12Object>(pObj), m_NextCmdListNumber);
-}
-
-bool CreateTestResource(ID3D12Device* pDevice, const D3D12_RESOURCE_DESC& ResDesc)
-{
-    // Set the texture pointer address to nullptr to validate input parameters
-    // without creating the texture
-    // https://msdn.microsoft.com/en-us/library/windows/desktop/dn899178(v=vs.85).aspx
-
-	D3D12_HEAP_PROPERTIES HeapProps;
-	HeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-	HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	HeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	HeapProps.CreationNodeMask = 1;
-	HeapProps.VisibleNodeMask = 1;
-        
-    auto hr = pDevice->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE, &ResDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, __uuidof(ID3D12Resource), nullptr );
-    return hr == S_FALSE; // S_FALSE means that input parameters passed validation
-}
-
-void RenderDeviceD3D12Impl::TestTextureFormat( TEXTURE_FORMAT TexFormat )
-{
-    auto &TexFormatInfo = m_TextureFormatsInfo[TexFormat];
-    VERIFY( TexFormatInfo.Supported, "Texture format is not supported" );
+    auto& TexFormatInfo = m_TextureFormatsInfo[TexFormat];
+    VERIFY(TexFormatInfo.Supported, "Texture format is not supported");
 
     auto DXGIFormat = TexFormatToDXGI_Format(TexFormat);
-    D3D12_RESOURCE_FLAGS DefaultResourceFlags = D3D12_RESOURCE_FLAG_NONE;
-    if( TexFormatInfo.ComponentType == COMPONENT_TYPE_DEPTH ||
-        TexFormatInfo.ComponentType == COMPONENT_TYPE_DEPTH_STENCIL )
-        DefaultResourceFlags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-    
-    const int TestTextureDim = 32;
-    const int TestTextureDepth = 8;
-    
-    D3D12_RESOURCE_DESC ResDesc = 
-    {
-        D3D12_RESOURCE_DIMENSION_TEXTURE1D,
-        0, // Alignment
-        TestTextureDim,
-        1, // Height
-        1, // DepthOrArraySize
-        1, // MipLevels
-        DXGIFormat,
-        {1, 0},
-        D3D12_TEXTURE_LAYOUT_UNKNOWN,
-        DefaultResourceFlags
-    };
 
-    // Create test texture 1D
-    TexFormatInfo.Tex1DFmt = false;
-    if( TexFormatInfo.ComponentType != COMPONENT_TYPE_COMPRESSED )
+    D3D12_FEATURE_DATA_FORMAT_SUPPORT FormatSupport = {DXGIFormat};
+
+    auto hr = m_pd3d12Device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &FormatSupport, sizeof(FormatSupport));
+    if (FAILED(hr))
     {
-        TexFormatInfo.Tex1DFmt = CreateTestResource(m_pd3d12Device, ResDesc );
+        LOG_ERROR_MESSAGE("CheckFormatSupport() failed for format ", DXGIFormat);
+        return;
     }
 
-    // Create test texture 2D
-    TexFormatInfo.Tex2DFmt = false;
-    TexFormatInfo.TexCubeFmt = false;
-    TexFormatInfo.ColorRenderable = false;
-    TexFormatInfo.DepthRenderable = false;
-    TexFormatInfo.SupportsMS = false;
+    TexFormatInfo.Filterable =
+        ((FormatSupport.Support1 & D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE) != 0) ||
+        ((FormatSupport.Support1 & D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE_COMPARISON) != 0);
+
+    TexFormatInfo.BindFlags = BIND_SHADER_RESOURCE;
+    if ((FormatSupport.Support1 & D3D12_FORMAT_SUPPORT1_RENDER_TARGET) != 0)
+        TexFormatInfo.BindFlags |= BIND_RENDER_TARGET;
+    if ((FormatSupport.Support1 & D3D12_FORMAT_SUPPORT1_DEPTH_STENCIL) != 0)
+        TexFormatInfo.BindFlags |= BIND_DEPTH_STENCIL;
+    if ((FormatSupport.Support1 & D3D12_FORMAT_SUPPORT1_TYPED_UNORDERED_ACCESS_VIEW) != 0)
+        TexFormatInfo.BindFlags |= BIND_UNORDERED_ACCESS;
+
+    TexFormatInfo.Dimensions = RESOURCE_DIMENSION_SUPPORT_NONE;
+    if ((FormatSupport.Support1 & D3D12_FORMAT_SUPPORT1_TEXTURE1D) != 0)
+        TexFormatInfo.Dimensions |= RESOURCE_DIMENSION_SUPPORT_TEX_1D | RESOURCE_DIMENSION_SUPPORT_TEX_1D_ARRAY;
+    if ((FormatSupport.Support1 & D3D12_FORMAT_SUPPORT1_TEXTURE2D) != 0)
+        TexFormatInfo.Dimensions |= RESOURCE_DIMENSION_SUPPORT_TEX_2D | RESOURCE_DIMENSION_SUPPORT_TEX_2D_ARRAY;
+    if ((FormatSupport.Support1 & D3D12_FORMAT_SUPPORT1_TEXTURE3D) != 0)
+        TexFormatInfo.Dimensions |= RESOURCE_DIMENSION_SUPPORT_TEX_3D;
+    if ((FormatSupport.Support1 & D3D12_FORMAT_SUPPORT1_TEXTURECUBE) != 0)
+        TexFormatInfo.Dimensions |= RESOURCE_DIMENSION_SUPPORT_TEX_CUBE | RESOURCE_DIMENSION_SUPPORT_TEX_CUBE_ARRAY;
+
+    TexFormatInfo.SampleCounts = 0x0;
+    for (Uint32 SampleCount = 1; SampleCount <= D3D12_MAX_MULTISAMPLE_SAMPLE_COUNT; SampleCount *= 2)
     {
-        ResDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-        ResDesc.Height = TestTextureDim;
-        TexFormatInfo.Tex2DFmt = CreateTestResource( m_pd3d12Device, ResDesc );
+        D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS QualityLevels = {DXGIFormat, SampleCount};
 
-        if( TexFormatInfo.Tex2DFmt )
-        {
-            {
-            //    D3D12_TEXTURE2D_DESC CubeTexDesc = Tex2DDesc;
-                  ResDesc.DepthOrArraySize = 6;
-            //    CubeTexDesc.MiscFlags = D3D12_RESOURCE_MISC_TEXTURECUBE;
-                  TexFormatInfo.TexCubeFmt = CreateTestResource( m_pd3d12Device, ResDesc );
-                  ResDesc.DepthOrArraySize = 1;
-            }
-
-            if( TexFormatInfo.ComponentType == COMPONENT_TYPE_DEPTH ||
-                TexFormatInfo.ComponentType == COMPONENT_TYPE_DEPTH_STENCIL )
-            {
-                ResDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-                ResDesc.SampleDesc.Count = 1;
-                TexFormatInfo.DepthRenderable = CreateTestResource( m_pd3d12Device, ResDesc );
-
-                if( TexFormatInfo.DepthRenderable )
-                {
-                    ResDesc.SampleDesc.Count = 4;
-                    TexFormatInfo.SupportsMS = CreateTestResource( m_pd3d12Device, ResDesc );
-                }
-            }
-            else if( TexFormatInfo.ComponentType != COMPONENT_TYPE_COMPRESSED && 
-                     TexFormatInfo.Format != DXGI_FORMAT_R9G9B9E5_SHAREDEXP )
-            {
-                ResDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-                ResDesc.SampleDesc.Count = 1;
-                TexFormatInfo.ColorRenderable = CreateTestResource( m_pd3d12Device, ResDesc );
-                if( TexFormatInfo.ColorRenderable )
-                {
-                    ResDesc.SampleDesc.Count = 4;
-                    TexFormatInfo.SupportsMS = CreateTestResource( m_pd3d12Device, ResDesc );
-                }
-            }
-        }
-    }
-
-    // Create test texture 3D
-    TexFormatInfo.Tex3DFmt = false;
-    // 3D textures do not support depth formats
-    if( !(TexFormatInfo.ComponentType == COMPONENT_TYPE_DEPTH ||
-          TexFormatInfo.ComponentType == COMPONENT_TYPE_DEPTH_STENCIL) )
-    {
-        ResDesc.SampleDesc.Count = 1;
-        ResDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D;
-        ResDesc.Flags = DefaultResourceFlags;
-        ResDesc.DepthOrArraySize = TestTextureDepth;
-        TexFormatInfo.Tex3DFmt = CreateTestResource( m_pd3d12Device, ResDesc );
+        hr = m_pd3d12Device->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &QualityLevels, sizeof(QualityLevels));
+        if (SUCCEEDED(hr) && QualityLevels.NumQualityLevels > 0)
+            TexFormatInfo.SampleCounts |= SampleCount;
     }
 }
 
-
-IMPLEMENT_QUERY_INTERFACE( RenderDeviceD3D12Impl, IID_RenderDeviceD3D12, TRenderDeviceBase )
-
-void RenderDeviceD3D12Impl::CreatePipelineState(const PipelineStateDesc& PipelineDesc, IPipelineState** ppPipelineState)
+template <typename PSOCreateInfoType>
+void RenderDeviceD3D12Impl::CreatePipelineState(const PSOCreateInfoType& PSOCreateInfo, IPipelineState** ppPipelineState)
 {
-    CreateDeviceObject("Pipeline State", PipelineDesc, ppPipelineState, 
-        [&]()
-        {
-            PipelineStateD3D12Impl *pPipelineStateD3D12( NEW_RC_OBJ(m_PSOAllocator, "PipelineStateD3D12Impl instance", PipelineStateD3D12Impl)(this, PipelineDesc ) );
-            pPipelineStateD3D12->QueryInterface( IID_PipelineState, reinterpret_cast<IObject**>(ppPipelineState) );
-            OnCreateDeviceObject( pPipelineStateD3D12 );
-        } 
-    );
-}
-
-void RenderDeviceD3D12Impl :: CreateBufferFromD3DResource(ID3D12Resource* pd3d12Buffer, const BufferDesc& BuffDesc, IBuffer** ppBuffer)
-{
-    CreateDeviceObject("buffer", BuffDesc, ppBuffer, 
-        [&]()
-        {
-            BufferD3D12Impl *pBufferD3D12( NEW_RC_OBJ(m_BufObjAllocator, "BufferD3D12Impl instance", BufferD3D12Impl)(m_BuffViewObjAllocator, this, BuffDesc, pd3d12Buffer ) );
-            pBufferD3D12->QueryInterface( IID_Buffer, reinterpret_cast<IObject**>(ppBuffer) );
-            pBufferD3D12->CreateDefaultViews();
-            OnCreateDeviceObject( pBufferD3D12 );
-        } 
-    );
-}
-
-void RenderDeviceD3D12Impl :: CreateBuffer(const BufferDesc& BuffDesc, const BufferData& BuffData, IBuffer** ppBuffer)
-{
-    CreateDeviceObject("buffer", BuffDesc, ppBuffer, 
-        [&]()
-        {
-            BufferD3D12Impl *pBufferD3D12( NEW_RC_OBJ(m_BufObjAllocator, "BufferD3D12Impl instance", BufferD3D12Impl)(m_BuffViewObjAllocator, this, BuffDesc, BuffData ) );
-            pBufferD3D12->QueryInterface( IID_Buffer, reinterpret_cast<IObject**>(ppBuffer) );
-            pBufferD3D12->CreateDefaultViews();
-            OnCreateDeviceObject( pBufferD3D12 );
-        } 
-    );
+    CreateDeviceObject("Pipeline State", PSOCreateInfo.PSODesc, ppPipelineState,
+                       [&]() //
+                       {
+                           PipelineStateD3D12Impl* pPipelineStateD3D12{NEW_RC_OBJ(m_PSOAllocator, "PipelineStateD3D12Impl instance", PipelineStateD3D12Impl)(this, PSOCreateInfo)};
+                           pPipelineStateD3D12->QueryInterface(IID_PipelineState, reinterpret_cast<IObject**>(ppPipelineState));
+                           OnCreateDeviceObject(pPipelineStateD3D12);
+                       });
 }
 
 
-void RenderDeviceD3D12Impl :: CreateShader(const ShaderCreationAttribs& ShaderCreationAttribs, IShader** ppShader)
+void RenderDeviceD3D12Impl::CreateGraphicsPipelineState(const GraphicsPipelineStateCreateInfo& PSOCreateInfo, IPipelineState** ppPipelineState)
 {
-    CreateDeviceObject( "shader", ShaderCreationAttribs.Desc, ppShader, 
-        [&]()
-        {
-            ShaderD3D12Impl *pShaderD3D12( NEW_RC_OBJ(m_ShaderObjAllocator, "ShaderD3D12Impl instance", ShaderD3D12Impl)(this, ShaderCreationAttribs ) );
-            pShaderD3D12->QueryInterface( IID_Shader, reinterpret_cast<IObject**>(ppShader) );
-
-            OnCreateDeviceObject( pShaderD3D12 );
-        } 
-    );
+    CreatePipelineState(PSOCreateInfo, ppPipelineState);
 }
 
-void RenderDeviceD3D12Impl::CreateTextureFromD3DResource(ID3D12Resource* pd3d12Texture, ITexture** ppTexture)
+void RenderDeviceD3D12Impl::CreateComputePipelineState(const ComputePipelineStateCreateInfo& PSOCreateInfo, IPipelineState** ppPipelineState)
+{
+    CreatePipelineState(PSOCreateInfo, ppPipelineState);
+}
+
+void RenderDeviceD3D12Impl::CreateRayTracingPipelineState(const RayTracingPipelineStateCreateInfo& PSOCreateInfo, IPipelineState** ppPipelineState)
+{
+    CreatePipelineState(PSOCreateInfo, ppPipelineState);
+}
+
+void RenderDeviceD3D12Impl::CreateBufferFromD3DResource(ID3D12Resource* pd3d12Buffer, const BufferDesc& BuffDesc, RESOURCE_STATE InitialState, IBuffer** ppBuffer)
+{
+    CreateDeviceObject("buffer", BuffDesc, ppBuffer,
+                       [&]() //
+                       {
+                           BufferD3D12Impl* pBufferD3D12{NEW_RC_OBJ(m_BufObjAllocator, "BufferD3D12Impl instance", BufferD3D12Impl)(m_BuffViewObjAllocator, this, BuffDesc, InitialState, pd3d12Buffer)};
+                           pBufferD3D12->QueryInterface(IID_Buffer, reinterpret_cast<IObject**>(ppBuffer));
+                           pBufferD3D12->CreateDefaultViews();
+                           OnCreateDeviceObject(pBufferD3D12);
+                       });
+}
+
+void RenderDeviceD3D12Impl::CreateBuffer(const BufferDesc& BuffDesc, const BufferData* pBuffData, IBuffer** ppBuffer)
+{
+    CreateDeviceObject("buffer", BuffDesc, ppBuffer,
+                       [&]() //
+                       {
+                           BufferD3D12Impl* pBufferD3D12{NEW_RC_OBJ(m_BufObjAllocator, "BufferD3D12Impl instance", BufferD3D12Impl)(m_BuffViewObjAllocator, this, BuffDesc, pBuffData)};
+                           pBufferD3D12->QueryInterface(IID_Buffer, reinterpret_cast<IObject**>(ppBuffer));
+                           pBufferD3D12->CreateDefaultViews();
+                           OnCreateDeviceObject(pBufferD3D12);
+                       });
+}
+
+
+void RenderDeviceD3D12Impl::CreateShader(const ShaderCreateInfo& ShaderCI, IShader** ppShader)
+{
+    CreateDeviceObject("shader", ShaderCI.Desc, ppShader,
+                       [&]() //
+                       {
+                           ShaderD3D12Impl* pShaderD3D12{NEW_RC_OBJ(m_ShaderObjAllocator, "ShaderD3D12Impl instance", ShaderD3D12Impl)(this, ShaderCI)};
+                           pShaderD3D12->QueryInterface(IID_Shader, reinterpret_cast<IObject**>(ppShader));
+
+                           OnCreateDeviceObject(pShaderD3D12);
+                       });
+}
+
+void RenderDeviceD3D12Impl::CreateTextureFromD3DResource(ID3D12Resource* pd3d12Texture, RESOURCE_STATE InitialState, ITexture** ppTexture)
 {
     TextureDesc TexDesc;
     TexDesc.Name = "Texture from d3d12 resource";
-    CreateDeviceObject( "texture", TexDesc, ppTexture, 
-        [&]()
-        {
-            TextureD3D12Impl *pTextureD3D12 = NEW_RC_OBJ(m_TexObjAllocator, "TextureD3D12Impl instance", TextureD3D12Impl)(m_TexViewObjAllocator, this, TexDesc, pd3d12Texture );
+    CreateDeviceObject("texture", TexDesc, ppTexture,
+                       [&]() //
+                       {
+                           TextureD3D12Impl* pTextureD3D12{NEW_RC_OBJ(m_TexObjAllocator, "TextureD3D12Impl instance", TextureD3D12Impl)(m_TexViewObjAllocator, this, TexDesc, InitialState, pd3d12Texture)};
 
-            pTextureD3D12->QueryInterface( IID_Texture, reinterpret_cast<IObject**>(ppTexture) );
-            pTextureD3D12->CreateDefaultViews();
-            OnCreateDeviceObject( pTextureD3D12 );
-        } 
-    );
+                           pTextureD3D12->QueryInterface(IID_Texture, reinterpret_cast<IObject**>(ppTexture));
+                           pTextureD3D12->CreateDefaultViews();
+                           OnCreateDeviceObject(pTextureD3D12);
+                       });
 }
 
-void RenderDeviceD3D12Impl::CreateTexture(const TextureDesc& TexDesc, ID3D12Resource* pd3d12Texture, TextureD3D12Impl** ppTexture)
+void RenderDeviceD3D12Impl::CreateTexture(const TextureDesc& TexDesc, ID3D12Resource* pd3d12Texture, RESOURCE_STATE InitialState, TextureD3D12Impl** ppTexture)
 {
-    CreateDeviceObject( "texture", TexDesc, ppTexture, 
-        [&]()
-        {
-            TextureD3D12Impl *pTextureD3D12 = NEW_RC_OBJ(m_TexObjAllocator, "TextureD3D12Impl instance", TextureD3D12Impl)(m_TexViewObjAllocator, this, TexDesc, pd3d12Texture );
-            pTextureD3D12->QueryInterface( IID_TextureD3D12, reinterpret_cast<IObject**>(ppTexture) );
-        }
-    );
+    CreateDeviceObject("texture", TexDesc, ppTexture,
+                       [&]() //
+                       {
+                           TextureD3D12Impl* pTextureD3D12{NEW_RC_OBJ(m_TexObjAllocator, "TextureD3D12Impl instance", TextureD3D12Impl)(m_TexViewObjAllocator, this, TexDesc, InitialState, pd3d12Texture)};
+                           pTextureD3D12->QueryInterface(IID_TextureD3D12, reinterpret_cast<IObject**>(ppTexture));
+                       });
 }
 
-void RenderDeviceD3D12Impl :: CreateTexture(const TextureDesc& TexDesc, const TextureData& Data, ITexture** ppTexture)
+void RenderDeviceD3D12Impl::CreateTexture(const TextureDesc& TexDesc, const TextureData* pData, ITexture** ppTexture)
 {
-    CreateDeviceObject( "texture", TexDesc, ppTexture, 
-        [&]()
-        {
-            TextureD3D12Impl *pTextureD3D12 = NEW_RC_OBJ(m_TexObjAllocator, "TextureD3D12Impl instance", TextureD3D12Impl)(m_TexViewObjAllocator, this, TexDesc, Data );
+    CreateDeviceObject("texture", TexDesc, ppTexture,
+                       [&]() //
+                       {
+                           TextureD3D12Impl* pTextureD3D12{NEW_RC_OBJ(m_TexObjAllocator, "TextureD3D12Impl instance", TextureD3D12Impl)(m_TexViewObjAllocator, this, TexDesc, pData)};
 
-            pTextureD3D12->QueryInterface( IID_Texture, reinterpret_cast<IObject**>(ppTexture) );
-            pTextureD3D12->CreateDefaultViews();
-            OnCreateDeviceObject( pTextureD3D12 );
-        } 
-    );
+                           pTextureD3D12->QueryInterface(IID_Texture, reinterpret_cast<IObject**>(ppTexture));
+                           pTextureD3D12->CreateDefaultViews();
+                           OnCreateDeviceObject(pTextureD3D12);
+                       });
 }
 
-void RenderDeviceD3D12Impl :: CreateSampler(const SamplerDesc& SamplerDesc, ISampler** ppSampler)
+void RenderDeviceD3D12Impl::CreateSampler(const SamplerDesc& SamplerDesc, ISampler** ppSampler)
 {
-    CreateDeviceObject( "sampler", SamplerDesc, ppSampler, 
-        [&]()
-        {
-            m_SamplersRegistry.Find( SamplerDesc, reinterpret_cast<IDeviceObject**>(ppSampler) );
-            if( *ppSampler == nullptr )
-            {
-                SamplerD3D12Impl *pSamplerD3D12( NEW_RC_OBJ(m_SamplerObjAllocator, "SamplerD3D12Impl instance", SamplerD3D12Impl)(this, SamplerDesc ) );
-                pSamplerD3D12->QueryInterface( IID_Sampler, reinterpret_cast<IObject**>(ppSampler) );
-                OnCreateDeviceObject( pSamplerD3D12 );
-                m_SamplersRegistry.Add( SamplerDesc, *ppSampler );
-            }
-        }
-    );
+    CreateDeviceObject("sampler", SamplerDesc, ppSampler,
+                       [&]() //
+                       {
+                           m_SamplersRegistry.Find(SamplerDesc, reinterpret_cast<IDeviceObject**>(ppSampler));
+                           if (*ppSampler == nullptr)
+                           {
+                               SamplerD3D12Impl* pSamplerD3D12{NEW_RC_OBJ(m_SamplerObjAllocator, "SamplerD3D12Impl instance", SamplerD3D12Impl)(this, SamplerDesc)};
+                               pSamplerD3D12->QueryInterface(IID_Sampler, reinterpret_cast<IObject**>(ppSampler));
+                               OnCreateDeviceObject(pSamplerD3D12);
+                               m_SamplersRegistry.Add(SamplerDesc, *ppSampler);
+                           }
+                       });
 }
 
 void RenderDeviceD3D12Impl::CreateFence(const FenceDesc& Desc, IFence** ppFence)
 {
-    CreateDeviceObject( "Fence", Desc, ppFence, 
-        [&]()
-        {
-            FenceD3D12Impl* pFenceD3D12( NEW_RC_OBJ(m_FenceAllocator, "FenceD3D12Impl instance", FenceD3D12Impl)
-                                                   (this, Desc) );
-            pFenceD3D12->QueryInterface( IID_Fence, reinterpret_cast<IObject**>(ppFence) );
-            OnCreateDeviceObject( pFenceD3D12 );
-        }
-    );
+    CreateDeviceObject("Fence", Desc, ppFence,
+                       [&]() //
+                       {
+                           FenceD3D12Impl* pFenceD3D12{NEW_RC_OBJ(m_FenceAllocator, "FenceD3D12Impl instance", FenceD3D12Impl)(this, Desc)};
+                           pFenceD3D12->QueryInterface(IID_Fence, reinterpret_cast<IObject**>(ppFence));
+                           OnCreateDeviceObject(pFenceD3D12);
+                       });
 }
 
-DescriptorHeapAllocation RenderDeviceD3D12Impl :: AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE Type, UINT Count /*= 1*/)
+void RenderDeviceD3D12Impl::CreateQuery(const QueryDesc& Desc, IQuery** ppQuery)
+{
+    CreateDeviceObject("Query", Desc, ppQuery,
+                       [&]() //
+                       {
+                           QueryD3D12Impl* pQueryD3D12{NEW_RC_OBJ(m_QueryAllocator, "QueryD3D12Impl instance", QueryD3D12Impl)(this, Desc)};
+                           pQueryD3D12->QueryInterface(IID_Query, reinterpret_cast<IObject**>(ppQuery));
+                           OnCreateDeviceObject(pQueryD3D12);
+                       });
+}
+
+void RenderDeviceD3D12Impl::CreateRenderPass(const RenderPassDesc& Desc, IRenderPass** ppRenderPass)
+{
+    CreateDeviceObject("RenderPass", Desc, ppRenderPass,
+                       [&]() //
+                       {
+                           RenderPassD3D12Impl* pRenderPassD3D12{NEW_RC_OBJ(m_RenderPassAllocator, "RenderPassD3D12Impl instance", RenderPassD3D12Impl)(this, Desc)};
+                           pRenderPassD3D12->QueryInterface(IID_RenderPass, reinterpret_cast<IObject**>(ppRenderPass));
+                           OnCreateDeviceObject(pRenderPassD3D12);
+                       });
+}
+
+void RenderDeviceD3D12Impl::CreateFramebuffer(const FramebufferDesc& Desc, IFramebuffer** ppFramebuffer)
+{
+    CreateDeviceObject("Framebuffer", Desc, ppFramebuffer,
+                       [&]() //
+                       {
+                           FramebufferD3D12Impl* pFramebufferD3D12{NEW_RC_OBJ(m_FramebufferAllocator, "FramebufferD3D12Impl instance", FramebufferD3D12Impl)(this, Desc)};
+                           pFramebufferD3D12->QueryInterface(IID_Framebuffer, reinterpret_cast<IObject**>(ppFramebuffer));
+                           OnCreateDeviceObject(pFramebufferD3D12);
+                       });
+}
+
+void RenderDeviceD3D12Impl::CreateBLASFromD3DResource(ID3D12Resource*          pd3d12BLAS,
+                                                      const BottomLevelASDesc& Desc,
+                                                      RESOURCE_STATE           InitialState,
+                                                      IBottomLevelAS**         ppBLAS)
+{
+    CreateDeviceObject("buffer", Desc, ppBLAS,
+                       [&]() //
+                       {
+                           BottomLevelASD3D12Impl* pBottomLevelASD3D12{NEW_RC_OBJ(m_BLASAllocator, "BottomLevelASD3D12Impl instance", BottomLevelASD3D12Impl)(this, Desc, InitialState, pd3d12BLAS)};
+                           pBottomLevelASD3D12->QueryInterface(IID_BottomLevelAS, reinterpret_cast<IObject**>(ppBLAS));
+                           OnCreateDeviceObject(pBottomLevelASD3D12);
+                       });
+}
+
+void RenderDeviceD3D12Impl::CreateBLAS(const BottomLevelASDesc& Desc,
+                                       IBottomLevelAS**         ppBLAS)
+{
+    CreateDeviceObject("BottomLevelAS", Desc, ppBLAS,
+                       [&]() //
+                       {
+                           BottomLevelASD3D12Impl* pBottomLevelASD3D12(NEW_RC_OBJ(m_BLASAllocator, "BottomLevelASD3D12Impl instance", BottomLevelASD3D12Impl)(this, Desc));
+                           pBottomLevelASD3D12->QueryInterface(IID_BottomLevelAS, reinterpret_cast<IObject**>(ppBLAS));
+                           OnCreateDeviceObject(pBottomLevelASD3D12);
+                       });
+}
+
+void RenderDeviceD3D12Impl::CreateTLASFromD3DResource(ID3D12Resource*       pd3d12TLAS,
+                                                      const TopLevelASDesc& Desc,
+                                                      RESOURCE_STATE        InitialState,
+                                                      ITopLevelAS**         ppTLAS)
+{
+    CreateDeviceObject("TopLevelAS", Desc, ppTLAS,
+                       [&]() //
+                       {
+                           TopLevelASD3D12Impl* pTopLevelASD3D12{NEW_RC_OBJ(m_TLASAllocator, "TopLevelASD3D12Impl instance", TopLevelASD3D12Impl)(this, Desc, InitialState, pd3d12TLAS)};
+                           pTopLevelASD3D12->QueryInterface(IID_TopLevelAS, reinterpret_cast<IObject**>(ppTLAS));
+                           OnCreateDeviceObject(pTopLevelASD3D12);
+                       });
+}
+
+void RenderDeviceD3D12Impl::CreateTLAS(const TopLevelASDesc& Desc,
+                                       ITopLevelAS**         ppTLAS)
+{
+    CreateDeviceObject("TopLevelAS", Desc, ppTLAS,
+                       [&]() //
+                       {
+                           TopLevelASD3D12Impl* pTopLevelASD3D12(NEW_RC_OBJ(m_TLASAllocator, "TopLevelASD3D12Impl instance", TopLevelASD3D12Impl)(this, Desc));
+                           pTopLevelASD3D12->QueryInterface(IID_TopLevelAS, reinterpret_cast<IObject**>(ppTLAS));
+                           OnCreateDeviceObject(pTopLevelASD3D12);
+                       });
+}
+
+void RenderDeviceD3D12Impl::CreateSBT(const ShaderBindingTableDesc& Desc,
+                                      IShaderBindingTable**         ppSBT)
+{
+    CreateDeviceObject("ShaderBindingTable", Desc, ppSBT,
+                       [&]() //
+                       {
+                           ShaderBindingTableD3D12Impl* pSBTD3D12(NEW_RC_OBJ(m_SBTAllocator, "ShaderBindingTableD3D12Impl instance", ShaderBindingTableD3D12Impl)(this, Desc));
+                           pSBTD3D12->QueryInterface(IID_ShaderBindingTable, reinterpret_cast<IObject**>(ppSBT));
+                           OnCreateDeviceObject(pSBTD3D12);
+                       });
+}
+
+DescriptorHeapAllocation RenderDeviceD3D12Impl::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE Type, UINT Count /*= 1*/)
 {
     VERIFY(Type >= D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && Type < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES, "Invalid heap type");
     return m_CPUDescriptorHeaps[Type].Allocate(Count);
 }
 
-DescriptorHeapAllocation RenderDeviceD3D12Impl :: AllocateGPUDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE Type, UINT Count /*= 1*/)
+DescriptorHeapAllocation RenderDeviceD3D12Impl::AllocateGPUDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE Type, UINT Count /*= 1*/)
 {
     VERIFY(Type >= D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && Type <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, "Invalid heap type");
     return m_GPUDescriptorHeaps[Type].Allocate(Count);
 }
 
-}
+} // namespace Diligent

@@ -1,14 +1,18 @@
-/*     Copyright 2015-2018 Egor Yusov
+/*
+ *  Copyright 2019-2020 Diligent Graphics LLC
+ *  Copyright 2015-2019 Egor Yusov
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
+ *  
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  *  In no event and under no legal theory, whether in tort (including negligence), 
  *  contract, or otherwise, unless required by applicable law (such as deliberate 
@@ -25,7 +29,9 @@
 #include <unordered_map>
 #include <array>
 
-#include "VulkanTypeConversions.h"
+#include "VulkanTypeConversions.hpp"
+#include "PlatformMisc.hpp"
+#include "Align.hpp"
 
 namespace Diligent
 {
@@ -35,6 +41,7 @@ class TexFormatToVkFormatMapper
 public:
     TexFormatToVkFormatMapper()
     {
+        // clang-format off
         m_FmtToVkFmtMap[TEX_FORMAT_UNKNOWN] = VK_FORMAT_UNDEFINED;
 
         m_FmtToVkFmtMap[TEX_FORMAT_RGBA32_TYPELESS] = VK_FORMAT_R32G32B32A32_SFLOAT;
@@ -153,9 +160,10 @@ public:
         m_FmtToVkFmtMap[TEX_FORMAT_BC7_TYPELESS]   = VK_FORMAT_BC7_UNORM_BLOCK;
         m_FmtToVkFmtMap[TEX_FORMAT_BC7_UNORM]      = VK_FORMAT_BC7_UNORM_BLOCK;
         m_FmtToVkFmtMap[TEX_FORMAT_BC7_UNORM_SRGB] = VK_FORMAT_BC7_SRGB_BLOCK;
+        // clang-format on
     }
 
-    VkFormat operator[](TEXTURE_FORMAT TexFmt)const
+    VkFormat operator[](TEXTURE_FORMAT TexFmt) const
     {
         VERIFY_EXPR(TexFmt < _countof(m_FmtToVkFmtMap));
         return m_FmtToVkFmtMap[TexFmt];
@@ -178,6 +186,7 @@ class VkFormatToTexFormatMapper
 public:
     VkFormatToTexFormatMapper()
     {
+        // clang-format off
         m_VkFmtToTexFmtMap[VK_FORMAT_UNDEFINED]                 = TEX_FORMAT_UNKNOWN;
         m_VkFmtToTexFmtMap[VK_FORMAT_R4G4_UNORM_PACK8]          = TEX_FORMAT_UNKNOWN;
         m_VkFmtToTexFmtMap[VK_FORMAT_R4G4B4A4_UNORM_PACK16]     = TEX_FORMAT_UNKNOWN;
@@ -430,11 +439,12 @@ public:
         m_VkFmtToTexFmtMapExt[VK_FORMAT_PVRTC1_4BPP_SRGB_BLOCK_IMG] = TEX_FORMAT_UNKNOWN;
         m_VkFmtToTexFmtMapExt[VK_FORMAT_PVRTC2_2BPP_SRGB_BLOCK_IMG] = TEX_FORMAT_UNKNOWN;
         m_VkFmtToTexFmtMapExt[VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG] = TEX_FORMAT_UNKNOWN;
+        // clang-format on
     }
 
-    TEXTURE_FORMAT operator[](VkFormat VkFmt)const
+    TEXTURE_FORMAT operator[](VkFormat VkFmt) const
     {
-        if(VkFmt < VK_FORMAT_RANGE_SIZE)
+        if (VkFmt < VK_FORMAT_RANGE_SIZE)
         {
             return m_VkFmtToTexFmtMap[VkFmt];
         }
@@ -446,7 +456,7 @@ public:
     }
 
 private:
-    TEXTURE_FORMAT m_VkFmtToTexFmtMap[VK_FORMAT_RANGE_SIZE] = {};
+    TEXTURE_FORMAT                               m_VkFmtToTexFmtMap[VK_FORMAT_RANGE_SIZE] = {};
     std::unordered_map<VkFormat, TEXTURE_FORMAT> m_VkFmtToTexFmtMapExt;
 };
 
@@ -469,6 +479,7 @@ VkFormat TypeToVkFormat(VALUE_TYPE ValType, Uint32 NumComponents, Bool bIsNormal
             {
                 case 1: return VK_FORMAT_R16_SFLOAT;
                 case 2: return VK_FORMAT_R16G16_SFLOAT;
+                case 3: return VK_FORMAT_R16G16B16_SFLOAT;
                 case 4: return VK_FORMAT_R16G16B16A16_SFLOAT;
                 default: UNEXPECTED("Unusupported number of components"); return VK_FORMAT_UNDEFINED;
             }
@@ -521,6 +532,7 @@ VkFormat TypeToVkFormat(VALUE_TYPE ValType, Uint32 NumComponents, Bool bIsNormal
                 {
                     case 1: return VK_FORMAT_R16_SNORM;
                     case 2: return VK_FORMAT_R16G16_SNORM;
+                    case 3: return VK_FORMAT_R16G16B16_SNORM;
                     case 4: return VK_FORMAT_R16G16B16A16_SNORM;
                     default: UNEXPECTED("Unusupported number of components"); return VK_FORMAT_UNDEFINED;
                 }
@@ -531,6 +543,7 @@ VkFormat TypeToVkFormat(VALUE_TYPE ValType, Uint32 NumComponents, Bool bIsNormal
                 {
                     case 1: return VK_FORMAT_R16_SINT;
                     case 2: return VK_FORMAT_R16G16_SINT;
+                    case 3: return VK_FORMAT_R16G16B16_SINT;
                     case 4: return VK_FORMAT_R16G16B16A16_SINT;
                     default: UNEXPECTED("Unusupported number of components"); return VK_FORMAT_UNDEFINED;
                 }
@@ -545,6 +558,7 @@ VkFormat TypeToVkFormat(VALUE_TYPE ValType, Uint32 NumComponents, Bool bIsNormal
                 {
                     case 1: return VK_FORMAT_R16_UNORM;
                     case 2: return VK_FORMAT_R16G16_UNORM;
+                    case 3: return VK_FORMAT_R16G16B16_UNORM;
                     case 4: return VK_FORMAT_R16G16B16A16_UNORM;
                     default: UNEXPECTED("Unusupported number of components"); return VK_FORMAT_UNDEFINED;
                 }
@@ -555,6 +569,7 @@ VkFormat TypeToVkFormat(VALUE_TYPE ValType, Uint32 NumComponents, Bool bIsNormal
                 {
                     case 1: return VK_FORMAT_R16_UINT;
                     case 2: return VK_FORMAT_R16G16_UINT;
+                    case 3: return VK_FORMAT_R16G16B16_UINT;
                     case 4: return VK_FORMAT_R16G16B16A16_UINT;
                     default: UNEXPECTED("Unusupported number of components"); return VK_FORMAT_UNDEFINED;
                 }
@@ -569,6 +584,7 @@ VkFormat TypeToVkFormat(VALUE_TYPE ValType, Uint32 NumComponents, Bool bIsNormal
                 {
                     case 1: return VK_FORMAT_R8_SNORM;
                     case 2: return VK_FORMAT_R8G8_SNORM;
+                    case 3: return VK_FORMAT_R8G8B8_SNORM;
                     case 4: return VK_FORMAT_R8G8B8A8_SNORM;
                     default: UNEXPECTED("Unusupported number of components"); return VK_FORMAT_UNDEFINED;
                 }
@@ -579,6 +595,7 @@ VkFormat TypeToVkFormat(VALUE_TYPE ValType, Uint32 NumComponents, Bool bIsNormal
                 {
                     case 1: return VK_FORMAT_R8_SINT;
                     case 2: return VK_FORMAT_R8G8_SINT;
+                    case 3: return VK_FORMAT_R8G8B8_SINT;
                     case 4: return VK_FORMAT_R8G8B8A8_SINT;
                     default: UNEXPECTED("Unusupported number of components"); return VK_FORMAT_UNDEFINED;
                 }
@@ -593,6 +610,7 @@ VkFormat TypeToVkFormat(VALUE_TYPE ValType, Uint32 NumComponents, Bool bIsNormal
                 {
                     case 1: return VK_FORMAT_R8_UNORM;
                     case 2: return VK_FORMAT_R8G8_UNORM;
+                    case 3: return VK_FORMAT_R8G8B8_UNORM;
                     case 4: return VK_FORMAT_R8G8B8A8_UNORM;
                     default: UNEXPECTED("Unusupported number of components"); return VK_FORMAT_UNDEFINED;
                 }
@@ -603,6 +621,7 @@ VkFormat TypeToVkFormat(VALUE_TYPE ValType, Uint32 NumComponents, Bool bIsNormal
                 {
                     case 1: return VK_FORMAT_R8_UINT;
                     case 2: return VK_FORMAT_R8G8_UINT;
+                    case 3: return VK_FORMAT_R8G8B8_UINT;
                     case 4: return VK_FORMAT_R8G8B8A8_UINT;
                     default: UNEXPECTED("Unusupported number of components"); return VK_FORMAT_UNDEFINED;
                 }
@@ -613,16 +632,33 @@ VkFormat TypeToVkFormat(VALUE_TYPE ValType, Uint32 NumComponents, Bool bIsNormal
     }
 }
 
+VkIndexType TypeToVkIndexType(VALUE_TYPE IndexType)
+{
+    switch (IndexType)
+    {
+        // clang-format off
+        case VT_UNDEFINED: return VK_INDEX_TYPE_NONE_KHR; // only for ray tracing
+        case VT_UINT16:    return VK_INDEX_TYPE_UINT16;
+        case VT_UINT32:    return VK_INDEX_TYPE_UINT32;
+        // clang-format on
+        default:
+            UNEXPECTED("Unexpected index type");
+            return VK_INDEX_TYPE_UINT32;
+    }
+}
+
 VkPolygonMode FillModeToVkPolygonMode(FILL_MODE FillMode)
 {
-    switch(FillMode)
+    switch (FillMode)
     {
-        case FILL_MODE_UNDEFINED: 
-            UNEXPECTED("Undefined fill mode"); 
+        case FILL_MODE_UNDEFINED:
+            UNEXPECTED("Undefined fill mode");
             return VK_POLYGON_MODE_FILL;
 
+        // clang-format off
         case FILL_MODE_SOLID:     return VK_POLYGON_MODE_FILL;
         case FILL_MODE_WIREFRAME: return VK_POLYGON_MODE_LINE;
+            // clang-format on
 
         default:
             UNEXPECTED("Unexpected fill mode");
@@ -632,15 +668,17 @@ VkPolygonMode FillModeToVkPolygonMode(FILL_MODE FillMode)
 
 VkCullModeFlagBits CullModeToVkCullMode(CULL_MODE CullMode)
 {
-    switch(CullMode)
+    switch (CullMode)
     {
         case CULL_MODE_UNDEFINED:
             UNEXPECTED("Undefined cull mode");
             return VK_CULL_MODE_NONE;
 
+        // clang-format off
         case CULL_MODE_NONE:  return VK_CULL_MODE_NONE;
         case CULL_MODE_FRONT: return VK_CULL_MODE_FRONT_BIT;
         case CULL_MODE_BACK:  return VK_CULL_MODE_BACK_BIT;
+            // clang-format on
 
         default:
             UNEXPECTED("Unexpected cull mode");
@@ -648,42 +686,44 @@ VkCullModeFlagBits CullModeToVkCullMode(CULL_MODE CullMode)
     }
 }
 
-VkPipelineRasterizationStateCreateInfo RasterizerStateDesc_To_VkRasterizationStateCI(const RasterizerStateDesc &RasterizerDesc)
+VkPipelineRasterizationStateCreateInfo RasterizerStateDesc_To_VkRasterizationStateCI(const RasterizerStateDesc& RasterizerDesc)
 {
     VkPipelineRasterizationStateCreateInfo RSStateCI = {};
+
     RSStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     RSStateCI.pNext = nullptr;
     RSStateCI.flags = 0; // Reserved for future use.
 
-    // If depth clamping is enabled, before the incoming fragment’s zf is compared to za, zf is clamped to 
-    // [min(n,f), max(n,f)], where n and f are the minDepth and maxDepth depth range values of the viewport 
+    // If depth clamping is enabled, before the incoming fragment's zf is compared to za, zf is clamped to
+    // [min(n,f), max(n,f)], where n and f are the minDepth and maxDepth depth range values of the viewport
     // used by this fragment, respectively (25.10)
     // This value is the opposite of clip enable
     RSStateCI.depthClampEnable = RasterizerDesc.DepthClipEnable ? VK_FALSE : VK_TRUE;
-                                                
-    RSStateCI.rasterizerDiscardEnable = VK_FALSE; // Whether primitives are discarded immediately before the rasterization stage.
-    RSStateCI.polygonMode = FillModeToVkPolygonMode(RasterizerDesc.FillMode); // 24.7.2
-    RSStateCI.cullMode = CullModeToVkCullMode(RasterizerDesc.CullMode); // 24.7.1
-    RSStateCI.frontFace = RasterizerDesc.FrontCounterClockwise ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE; // 24.7.1
+
+    RSStateCI.rasterizerDiscardEnable = VK_FALSE;                                                                                         // Whether primitives are discarded immediately before the rasterization stage.
+    RSStateCI.polygonMode             = FillModeToVkPolygonMode(RasterizerDesc.FillMode);                                                 // 24.7.2
+    RSStateCI.cullMode                = CullModeToVkCullMode(RasterizerDesc.CullMode);                                                    // 24.7.1
+    RSStateCI.frontFace               = RasterizerDesc.FrontCounterClockwise ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE; // 24.7.1
     // Depth bias (24.7.3)
     RSStateCI.depthBiasEnable = (RasterizerDesc.DepthBias != 0 || RasterizerDesc.SlopeScaledDepthBias != 0.f) ? VK_TRUE : VK_FALSE;
-    RSStateCI.depthBiasConstantFactor = 
-        static_cast<float>(RasterizerDesc.DepthBias); // a scalar factor applied to an implementation-dependent constant 
-                                                      // that relates to the usable resolution of the depth buffer
+    RSStateCI.depthBiasConstantFactor =
+        static_cast<float>(RasterizerDesc.DepthBias);         // a scalar factor applied to an implementation-dependent constant
+                                                              // that relates to the usable resolution of the depth buffer
     RSStateCI.depthBiasClamp = RasterizerDesc.DepthBiasClamp; // maximum (or minimum) depth bias of a fragment.
-    RSStateCI.depthBiasSlopeFactor = 
-        RasterizerDesc.SlopeScaledDepthBias; //  a scalar factor applied to a fragment’s slope in depth bias calculations.
-    RSStateCI.lineWidth = 1.f; // If the wide lines feature is not enabled, and no element of the pDynamicStates member of 
-                               // pDynamicState is VK_DYNAMIC_STATE_LINE_WIDTH, the lineWidth member of 
-                               // pRasterizationState must be 1.0 (9.2)
+    RSStateCI.depthBiasSlopeFactor =
+        RasterizerDesc.SlopeScaledDepthBias; //  a scalar factor applied to a fragment's slope in depth bias calculations.
+    RSStateCI.lineWidth = 1.f;               // If the wide lines feature is not enabled, and no element of the pDynamicStates member of
+                                             // pDynamicState is VK_DYNAMIC_STATE_LINE_WIDTH, the lineWidth member of
+                                             // pRasterizationState must be 1.0 (9.2)
 
     return RSStateCI;
 }
 
 VkCompareOp ComparisonFuncToVkCompareOp(COMPARISON_FUNCTION CmpFunc)
 {
-    switch(CmpFunc)
+    switch (CmpFunc)
     {
+        // clang-format off
         case COMPARISON_FUNC_UNKNOWN: 
             UNEXPECTED("Comparison function is not specified" ); 
             return VK_COMPARE_OP_ALWAYS;
@@ -696,17 +736,19 @@ VkCompareOp ComparisonFuncToVkCompareOp(COMPARISON_FUNCTION CmpFunc)
         case COMPARISON_FUNC_NOT_EQUAL:     return VK_COMPARE_OP_NOT_EQUAL;
         case COMPARISON_FUNC_GREATER_EQUAL: return VK_COMPARE_OP_GREATER_OR_EQUAL;
         case COMPARISON_FUNC_ALWAYS:        return VK_COMPARE_OP_ALWAYS;
+            // clang-format on
 
-        default: 
-            UNEXPECTED("Unknown comparison function" ); 
+        default:
+            UNEXPECTED("Unknown comparison function");
             return VK_COMPARE_OP_ALWAYS;
     }
 }
 
 VkStencilOp StencilOpToVkStencilOp(STENCIL_OP StencilOp)
 {
-    switch(StencilOp)
+    switch (StencilOp)
     {
+        // clang-format off
         case STENCIL_OP_UNDEFINED:
             UNEXPECTED("Undefined stencil operation");
             return VK_STENCIL_OP_KEEP;
@@ -719,6 +761,7 @@ VkStencilOp StencilOpToVkStencilOp(STENCIL_OP StencilOp)
         case STENCIL_OP_INVERT:     return VK_STENCIL_OP_INVERT;
         case STENCIL_OP_INCR_WRAP:  return VK_STENCIL_OP_INCREMENT_AND_WRAP;
         case STENCIL_OP_DECR_WRAP:  return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+            // clang-format on
 
         default:
             UNEXPECTED("Unknown stencil operation");
@@ -730,41 +773,42 @@ VkStencilOpState StencilOpDescToVkStencilOpState(const StencilOpDesc& desc, Uint
 {
     // Stencil state (25.9)
     VkStencilOpState StencilState = {};
-    StencilState.failOp = StencilOpToVkStencilOp(desc.StencilFailOp);
-    StencilState.passOp = StencilOpToVkStencilOp(desc.StencilPassOp);
-    StencilState.depthFailOp = StencilOpToVkStencilOp(desc.StencilDepthFailOp);
-    StencilState.compareOp = ComparisonFuncToVkCompareOp(desc.StencilFunc);
+    StencilState.failOp           = StencilOpToVkStencilOp(desc.StencilFailOp);
+    StencilState.passOp           = StencilOpToVkStencilOp(desc.StencilPassOp);
+    StencilState.depthFailOp      = StencilOpToVkStencilOp(desc.StencilDepthFailOp);
+    StencilState.compareOp        = ComparisonFuncToVkCompareOp(desc.StencilFunc);
 
     // The s least significant bits of compareMask,  where s is the number of bits in the stencil framebuffer attachment,
-    // are bitwise ANDed with both the reference and the stored stencil value, and the resulting masked values are those 
+    // are bitwise ANDed with both the reference and the stored stencil value, and the resulting masked values are those
     // that participate in the comparison controlled by compareOp (25.9)
     StencilState.compareMask = StencilReadMask;
 
-    // The least significant s bits of writeMask, where s is the number of bits in the stencil framebuffer 
-    // attachment, specify an integer mask. Where a 1 appears in this mask, the corresponding bit in the stencil 
+    // The least significant s bits of writeMask, where s is the number of bits in the stencil framebuffer
+    // attachment, specify an integer mask. Where a 1 appears in this mask, the corresponding bit in the stencil
     // value in the depth / stencil attachment is written; where a 0 appears, the bit is not written (25.9)
     StencilState.writeMask = StencilWriteMask;
-                                             
+
     StencilState.reference = 0; // Set dynamically
 
     return StencilState;
 }
 
 
-VkPipelineDepthStencilStateCreateInfo  DepthStencilStateDesc_To_VkDepthStencilStateCI(const DepthStencilStateDesc &DepthStencilDesc)
+VkPipelineDepthStencilStateCreateInfo DepthStencilStateDesc_To_VkDepthStencilStateCI(const DepthStencilStateDesc& DepthStencilDesc)
 {
     // Depth-stencil state (25.7)
     VkPipelineDepthStencilStateCreateInfo DSStateCI = {};
-    DSStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    DSStateCI.pNext = nullptr;
-    DSStateCI.flags = 0; // reserved for future use
-    DSStateCI.depthTestEnable = DepthStencilDesc.DepthEnable ? VK_TRUE : VK_FALSE;
-    DSStateCI.depthWriteEnable = DepthStencilDesc.DepthWriteEnable ? VK_TRUE : VK_FALSE;
-    DSStateCI.depthCompareOp = ComparisonFuncToVkCompareOp(DepthStencilDesc.DepthFunc); // 25.10
-    DSStateCI.depthBoundsTestEnable = VK_FALSE; // 25.8
-    DSStateCI.stencilTestEnable = DepthStencilDesc.StencilEnable ? VK_TRUE : VK_FALSE; // 25.9
-    DSStateCI.front = StencilOpDescToVkStencilOpState(DepthStencilDesc.FrontFace, DepthStencilDesc.StencilReadMask, DepthStencilDesc.StencilWriteMask);
-    DSStateCI.back = StencilOpDescToVkStencilOpState(DepthStencilDesc.BackFace, DepthStencilDesc.StencilReadMask, DepthStencilDesc.StencilWriteMask);
+
+    DSStateCI.sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    DSStateCI.pNext                 = nullptr;
+    DSStateCI.flags                 = 0; // reserved for future use
+    DSStateCI.depthTestEnable       = DepthStencilDesc.DepthEnable ? VK_TRUE : VK_FALSE;
+    DSStateCI.depthWriteEnable      = DepthStencilDesc.DepthWriteEnable ? VK_TRUE : VK_FALSE;
+    DSStateCI.depthCompareOp        = ComparisonFuncToVkCompareOp(DepthStencilDesc.DepthFunc); // 25.10
+    DSStateCI.depthBoundsTestEnable = VK_FALSE;                                                // 25.8
+    DSStateCI.stencilTestEnable     = DepthStencilDesc.StencilEnable ? VK_TRUE : VK_FALSE;     // 25.9
+    DSStateCI.front                 = StencilOpDescToVkStencilOpState(DepthStencilDesc.FrontFace, DepthStencilDesc.StencilReadMask, DepthStencilDesc.StencilWriteMask);
+    DSStateCI.back                  = StencilOpDescToVkStencilOpState(DepthStencilDesc.BackFace, DepthStencilDesc.StencilReadMask, DepthStencilDesc.StencilWriteMask);
     // Depth Bounds Test (25.8)
     DSStateCI.minDepthBounds = 0; // must be between 0.0 and 1.0, inclusive
     DSStateCI.maxDepthBounds = 1; // must be between 0.0 and 1.0, inclusive
@@ -778,26 +822,26 @@ public:
     BlendFactorToVkBlendFactorMapper()
     {
         // 26.1.1
-        m_Map[BLEND_FACTOR_ZERO]            = VK_BLEND_FACTOR_ZERO;
-        m_Map[BLEND_FACTOR_ONE]             = VK_BLEND_FACTOR_ONE;
-        m_Map[BLEND_FACTOR_SRC_COLOR]       = VK_BLEND_FACTOR_SRC_COLOR;
-        m_Map[BLEND_FACTOR_INV_SRC_COLOR]   = VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
-        m_Map[BLEND_FACTOR_SRC_ALPHA]       = VK_BLEND_FACTOR_SRC_ALPHA;
-        m_Map[BLEND_FACTOR_INV_SRC_ALPHA]   = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-        m_Map[BLEND_FACTOR_DEST_ALPHA]      = VK_BLEND_FACTOR_DST_ALPHA;
-        m_Map[BLEND_FACTOR_INV_DEST_ALPHA]  = VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
-        m_Map[BLEND_FACTOR_DEST_COLOR]      = VK_BLEND_FACTOR_DST_COLOR;
-        m_Map[BLEND_FACTOR_INV_DEST_COLOR]  = VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
-        m_Map[BLEND_FACTOR_SRC_ALPHA_SAT]   = VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
-        m_Map[BLEND_FACTOR_BLEND_FACTOR]    = VK_BLEND_FACTOR_CONSTANT_COLOR;
+        m_Map[BLEND_FACTOR_ZERO]             = VK_BLEND_FACTOR_ZERO;
+        m_Map[BLEND_FACTOR_ONE]              = VK_BLEND_FACTOR_ONE;
+        m_Map[BLEND_FACTOR_SRC_COLOR]        = VK_BLEND_FACTOR_SRC_COLOR;
+        m_Map[BLEND_FACTOR_INV_SRC_COLOR]    = VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+        m_Map[BLEND_FACTOR_SRC_ALPHA]        = VK_BLEND_FACTOR_SRC_ALPHA;
+        m_Map[BLEND_FACTOR_INV_SRC_ALPHA]    = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        m_Map[BLEND_FACTOR_DEST_ALPHA]       = VK_BLEND_FACTOR_DST_ALPHA;
+        m_Map[BLEND_FACTOR_INV_DEST_ALPHA]   = VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+        m_Map[BLEND_FACTOR_DEST_COLOR]       = VK_BLEND_FACTOR_DST_COLOR;
+        m_Map[BLEND_FACTOR_INV_DEST_COLOR]   = VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+        m_Map[BLEND_FACTOR_SRC_ALPHA_SAT]    = VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
+        m_Map[BLEND_FACTOR_BLEND_FACTOR]     = VK_BLEND_FACTOR_CONSTANT_COLOR;
         m_Map[BLEND_FACTOR_INV_BLEND_FACTOR] = VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR;
-        m_Map[BLEND_FACTOR_SRC1_COLOR]      = VK_BLEND_FACTOR_SRC1_COLOR;
-        m_Map[BLEND_FACTOR_INV_SRC1_COLOR]  = VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR;
-        m_Map[BLEND_FACTOR_SRC1_ALPHA]      = VK_BLEND_FACTOR_SRC1_ALPHA;
-        m_Map[BLEND_FACTOR_INV_SRC1_ALPHA]  = VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
+        m_Map[BLEND_FACTOR_SRC1_COLOR]       = VK_BLEND_FACTOR_SRC1_COLOR;
+        m_Map[BLEND_FACTOR_INV_SRC1_COLOR]   = VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR;
+        m_Map[BLEND_FACTOR_SRC1_ALPHA]       = VK_BLEND_FACTOR_SRC1_ALPHA;
+        m_Map[BLEND_FACTOR_INV_SRC1_ALPHA]   = VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
     }
-    
-    VkBlendFactor operator[](BLEND_FACTOR bf)const
+
+    VkBlendFactor operator[](BLEND_FACTOR bf) const
     {
         VERIFY_EXPR(bf > BLEND_FACTOR_UNDEFINED && bf < BLEND_FACTOR_NUM_FACTORS);
         return m_Map[static_cast<int>(bf)];
@@ -814,25 +858,25 @@ public:
     LogicOperationToVkLogicOp()
     {
         // 26.2
-        m_Map[ LOGIC_OP_CLEAR		   ]  = VK_LOGIC_OP_CLEAR;
-        m_Map[ LOGIC_OP_SET			   ]  = VK_LOGIC_OP_SET;
-        m_Map[ LOGIC_OP_COPY		   ]  = VK_LOGIC_OP_COPY;
-        m_Map[ LOGIC_OP_COPY_INVERTED  ]  = VK_LOGIC_OP_COPY_INVERTED;
-        m_Map[ LOGIC_OP_NOOP		   ]  = VK_LOGIC_OP_NO_OP;
-        m_Map[ LOGIC_OP_INVERT		   ]  = VK_LOGIC_OP_INVERT;
-        m_Map[ LOGIC_OP_AND			   ]  = VK_LOGIC_OP_AND;
-        m_Map[ LOGIC_OP_NAND		   ]  = VK_LOGIC_OP_NAND;
-        m_Map[ LOGIC_OP_OR			   ]  = VK_LOGIC_OP_OR;
-        m_Map[ LOGIC_OP_NOR			   ]  = VK_LOGIC_OP_NOR;
-        m_Map[ LOGIC_OP_XOR			   ]  = VK_LOGIC_OP_XOR;
-        m_Map[ LOGIC_OP_EQUIV		   ]  = VK_LOGIC_OP_EQUIVALENT;
-        m_Map[ LOGIC_OP_AND_REVERSE	   ]  = VK_LOGIC_OP_AND_REVERSE;
-        m_Map[ LOGIC_OP_AND_INVERTED   ]  = VK_LOGIC_OP_AND_INVERTED;
-        m_Map[ LOGIC_OP_OR_REVERSE	   ]  = VK_LOGIC_OP_OR_REVERSE;
-        m_Map[ LOGIC_OP_OR_INVERTED	   ]  = VK_LOGIC_OP_OR_INVERTED;
+        m_Map[LOGIC_OP_CLEAR]         = VK_LOGIC_OP_CLEAR;
+        m_Map[LOGIC_OP_SET]           = VK_LOGIC_OP_SET;
+        m_Map[LOGIC_OP_COPY]          = VK_LOGIC_OP_COPY;
+        m_Map[LOGIC_OP_COPY_INVERTED] = VK_LOGIC_OP_COPY_INVERTED;
+        m_Map[LOGIC_OP_NOOP]          = VK_LOGIC_OP_NO_OP;
+        m_Map[LOGIC_OP_INVERT]        = VK_LOGIC_OP_INVERT;
+        m_Map[LOGIC_OP_AND]           = VK_LOGIC_OP_AND;
+        m_Map[LOGIC_OP_NAND]          = VK_LOGIC_OP_NAND;
+        m_Map[LOGIC_OP_OR]            = VK_LOGIC_OP_OR;
+        m_Map[LOGIC_OP_NOR]           = VK_LOGIC_OP_NOR;
+        m_Map[LOGIC_OP_XOR]           = VK_LOGIC_OP_XOR;
+        m_Map[LOGIC_OP_EQUIV]         = VK_LOGIC_OP_EQUIVALENT;
+        m_Map[LOGIC_OP_AND_REVERSE]   = VK_LOGIC_OP_AND_REVERSE;
+        m_Map[LOGIC_OP_AND_INVERTED]  = VK_LOGIC_OP_AND_INVERTED;
+        m_Map[LOGIC_OP_OR_REVERSE]    = VK_LOGIC_OP_OR_REVERSE;
+        m_Map[LOGIC_OP_OR_INVERTED]   = VK_LOGIC_OP_OR_INVERTED;
     }
 
-    VkLogicOp operator[](LOGIC_OPERATION op)const
+    VkLogicOp operator[](LOGIC_OPERATION op) const
     {
         VERIFY_EXPR(op >= LOGIC_OP_CLEAR && op < LOGIC_OP_NUM_OPERATIONS);
         return m_Map[static_cast<int>(op)];
@@ -848,14 +892,14 @@ public:
     BlendOperationToVkBlendOp()
     {
         // 26.1.3
-        m_Map[ BLEND_OPERATION_ADD          ] = VK_BLEND_OP_ADD;
-        m_Map[ BLEND_OPERATION_SUBTRACT     ] = VK_BLEND_OP_SUBTRACT;
-        m_Map[ BLEND_OPERATION_REV_SUBTRACT ] = VK_BLEND_OP_REVERSE_SUBTRACT;
-        m_Map[ BLEND_OPERATION_MIN          ] = VK_BLEND_OP_MIN;
-        m_Map[ BLEND_OPERATION_MAX          ] = VK_BLEND_OP_MAX;
+        m_Map[BLEND_OPERATION_ADD]          = VK_BLEND_OP_ADD;
+        m_Map[BLEND_OPERATION_SUBTRACT]     = VK_BLEND_OP_SUBTRACT;
+        m_Map[BLEND_OPERATION_REV_SUBTRACT] = VK_BLEND_OP_REVERSE_SUBTRACT;
+        m_Map[BLEND_OPERATION_MIN]          = VK_BLEND_OP_MIN;
+        m_Map[BLEND_OPERATION_MAX]          = VK_BLEND_OP_MAX;
     }
 
-    VkBlendOp operator[](BLEND_OPERATION op)const
+    VkBlendOp operator[](BLEND_OPERATION op) const
     {
         VERIFY_EXPR(op > BLEND_OPERATION_UNDEFINED && op < BLEND_OPERATION_NUM_OPERATIONS);
         return m_Map[static_cast<int>(op)];
@@ -865,11 +909,12 @@ private:
     std::array<VkBlendOp, BLEND_OPERATION_NUM_OPERATIONS> m_Map = {};
 };
 
-VkPipelineColorBlendAttachmentState RenderTargetBlendDescToVkColorBlendAttachmentState(const RenderTargetBlendDesc &RTBlendDesc)
+VkPipelineColorBlendAttachmentState RenderTargetBlendDescToVkColorBlendAttachmentState(const RenderTargetBlendDesc& RTBlendDesc)
 {
     static const BlendFactorToVkBlendFactorMapper BFtoVKBF;
-    static const BlendOperationToVkBlendOp BOtoVKBO;
-    VkPipelineColorBlendAttachmentState AttachmentBlendState = {};
+    static const BlendOperationToVkBlendOp        BOtoVKBO;
+    VkPipelineColorBlendAttachmentState           AttachmentBlendState = {};
+
     AttachmentBlendState.blendEnable         = RTBlendDesc.BlendEnable;
     AttachmentBlendState.srcColorBlendFactor = BFtoVKBF[RTBlendDesc.SrcBlend];
     AttachmentBlendState.dstColorBlendFactor = BFtoVKBF[RTBlendDesc.DestBlend];
@@ -877,48 +922,48 @@ VkPipelineColorBlendAttachmentState RenderTargetBlendDescToVkColorBlendAttachmen
     AttachmentBlendState.srcAlphaBlendFactor = BFtoVKBF[RTBlendDesc.SrcBlendAlpha];
     AttachmentBlendState.dstAlphaBlendFactor = BFtoVKBF[RTBlendDesc.DestBlendAlpha];
     AttachmentBlendState.alphaBlendOp        = BOtoVKBO[RTBlendDesc.BlendOpAlpha];
-    AttachmentBlendState.colorWriteMask      = 
-        ((RTBlendDesc.RenderTargetWriteMask & COLOR_MASK_RED)   ? VK_COLOR_COMPONENT_R_BIT : 0) |
+    AttachmentBlendState.colorWriteMask =
+        ((RTBlendDesc.RenderTargetWriteMask & COLOR_MASK_RED) ? VK_COLOR_COMPONENT_R_BIT : 0) |
         ((RTBlendDesc.RenderTargetWriteMask & COLOR_MASK_GREEN) ? VK_COLOR_COMPONENT_G_BIT : 0) |
-        ((RTBlendDesc.RenderTargetWriteMask & COLOR_MASK_BLUE)  ? VK_COLOR_COMPONENT_B_BIT : 0) |
+        ((RTBlendDesc.RenderTargetWriteMask & COLOR_MASK_BLUE) ? VK_COLOR_COMPONENT_B_BIT : 0) |
         ((RTBlendDesc.RenderTargetWriteMask & COLOR_MASK_ALPHA) ? VK_COLOR_COMPONENT_A_BIT : 0);
 
     return AttachmentBlendState;
 }
 
-void BlendStateDesc_To_VkBlendStateCI(const BlendStateDesc &BSDesc, 
-                                      VkPipelineColorBlendStateCreateInfo &ColorBlendStateCI,
-                                      std::vector<VkPipelineColorBlendAttachmentState> &ColorBlendAttachments)
+void BlendStateDesc_To_VkBlendStateCI(const BlendStateDesc&                             BSDesc,
+                                      VkPipelineColorBlendStateCreateInfo&              ColorBlendStateCI,
+                                      std::vector<VkPipelineColorBlendAttachmentState>& ColorBlendAttachments)
 {
     // Color blend state (26.1)
     static const LogicOperationToVkLogicOp LogicOpToVkLogicOp;
-    ColorBlendStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    ColorBlendStateCI.pNext = nullptr;
-    ColorBlendStateCI.flags = 0; // reserved for future use
-    ColorBlendStateCI.logicOpEnable = BSDesc.RenderTargets[0].LogicOperationEnable; // 26.2
-    ColorBlendStateCI.logicOp = LogicOpToVkLogicOp[BSDesc.RenderTargets[0].LogicOp];
+    ColorBlendStateCI.sType             = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    ColorBlendStateCI.pNext             = nullptr;
+    ColorBlendStateCI.flags             = 0;                                            // reserved for future use
+    ColorBlendStateCI.logicOpEnable     = BSDesc.RenderTargets[0].LogicOperationEnable; // 26.2
+    ColorBlendStateCI.logicOp           = LogicOpToVkLogicOp[BSDesc.RenderTargets[0].LogicOp];
     ColorBlendStateCI.blendConstants[0] = 0.f; // We use dynamic blend constants
     ColorBlendStateCI.blendConstants[1] = 0.f;
     ColorBlendStateCI.blendConstants[2] = 0.f;
     ColorBlendStateCI.blendConstants[3] = 0.f;
     // attachmentCount must equal the colorAttachmentCount for the subpass in which this pipeline is used.
-    for(uint32_t attachment = 0; attachment < ColorBlendStateCI.attachmentCount; ++attachment)
+    for (uint32_t attachment = 0; attachment < ColorBlendStateCI.attachmentCount; ++attachment)
     {
-        const auto& RTBlendState = BSDesc.IndependentBlendEnable ? BSDesc.RenderTargets[attachment] : BSDesc.RenderTargets[0];
+        const auto& RTBlendState          = BSDesc.IndependentBlendEnable ? BSDesc.RenderTargets[attachment] : BSDesc.RenderTargets[0];
         ColorBlendAttachments[attachment] = RenderTargetBlendDescToVkColorBlendAttachmentState(RTBlendState);
     }
 }
 
-VkVertexInputRate LayoutElemFrequencyToVkInputRate(LayoutElement::FREQUENCY frequency)
+VkVertexInputRate LayoutElemFrequencyToVkInputRate(INPUT_ELEMENT_FREQUENCY frequency)
 {
-    switch(frequency)
+    switch (frequency)
     {
-        case LayoutElement::FREQUENCY_UNDEFINED: 
+        case INPUT_ELEMENT_FREQUENCY_UNDEFINED:
             UNEXPECTED("Undefined layout element frequency");
             return VK_VERTEX_INPUT_RATE_VERTEX;
-        
-        case LayoutElement::FREQUENCY_PER_VERTEX:   return VK_VERTEX_INPUT_RATE_VERTEX;
-        case LayoutElement::FREQUENCY_PER_INSTANCE: return VK_VERTEX_INPUT_RATE_INSTANCE;
+
+        case INPUT_ELEMENT_FREQUENCY_PER_VERTEX: return VK_VERTEX_INPUT_RATE_VERTEX;
+        case INPUT_ELEMENT_FREQUENCY_PER_INSTANCE: return VK_VERTEX_INPUT_RATE_INSTANCE;
 
         default:
             UNEXPECTED("Unknown layout element frequency");
@@ -926,63 +971,63 @@ VkVertexInputRate LayoutElemFrequencyToVkInputRate(LayoutElement::FREQUENCY freq
     }
 }
 
-void InputLayoutDesc_To_VkVertexInputStateCI(const InputLayoutDesc& LayoutDesc,
-                                             VkPipelineVertexInputStateCreateInfo &VertexInputStateCI,
-                                             std::array<VkVertexInputBindingDescription, iMaxLayoutElements>& BindingDescriptions,
-                                             std::array<VkVertexInputAttributeDescription, iMaxLayoutElements>& AttributeDescription)
+void InputLayoutDesc_To_VkVertexInputStateCI(const InputLayoutDesc&                                              LayoutDesc,
+                                             VkPipelineVertexInputStateCreateInfo&                               VertexInputStateCI,
+                                             std::array<VkVertexInputBindingDescription, MAX_LAYOUT_ELEMENTS>&   BindingDescriptions,
+                                             std::array<VkVertexInputAttributeDescription, MAX_LAYOUT_ELEMENTS>& AttributeDescription)
 {
     // Vertex input description (20.2)
-    VertexInputStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    VertexInputStateCI.pNext = nullptr;
-    VertexInputStateCI.flags = 0; // reserved for future use.
-    VertexInputStateCI.vertexBindingDescriptionCount = 0;
-    VertexInputStateCI.pVertexBindingDescriptions = BindingDescriptions.data();
+    VertexInputStateCI.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    VertexInputStateCI.pNext                           = nullptr;
+    VertexInputStateCI.flags                           = 0; // reserved for future use.
+    VertexInputStateCI.vertexBindingDescriptionCount   = 0;
+    VertexInputStateCI.pVertexBindingDescriptions      = BindingDescriptions.data();
     VertexInputStateCI.vertexAttributeDescriptionCount = LayoutDesc.NumElements;
-    VertexInputStateCI.pVertexAttributeDescriptions = AttributeDescription.data();
-    std::array<Int32, iMaxLayoutElements> BufferSlot2BindingDescInd;
+    VertexInputStateCI.pVertexAttributeDescriptions    = AttributeDescription.data();
+    std::array<Int32, MAX_LAYOUT_ELEMENTS> BufferSlot2BindingDescInd;
     BufferSlot2BindingDescInd.fill(-1);
-    for(Uint32 elem=0; elem < LayoutDesc.NumElements; ++elem)
+    for (Uint32 elem = 0; elem < LayoutDesc.NumElements; ++elem)
     {
-        auto &LayoutElem = LayoutDesc.LayoutElements[elem];
-        auto &BindingDescInd = BufferSlot2BindingDescInd[LayoutElem.BufferSlot];
-        if(BindingDescInd < 0)
+        auto& LayoutElem     = LayoutDesc.LayoutElements[elem];
+        auto& BindingDescInd = BufferSlot2BindingDescInd[LayoutElem.BufferSlot];
+        if (BindingDescInd < 0)
         {
-            BindingDescInd = VertexInputStateCI.vertexBindingDescriptionCount++;
-            auto &BindingDesc = BindingDescriptions[BindingDescInd];
-            BindingDesc.binding = LayoutElem.BufferSlot;
-            BindingDesc.stride = LayoutElem.Stride;
+            BindingDescInd        = VertexInputStateCI.vertexBindingDescriptionCount++;
+            auto& BindingDesc     = BindingDescriptions[BindingDescInd];
+            BindingDesc.binding   = LayoutElem.BufferSlot;
+            BindingDesc.stride    = LayoutElem.Stride;
             BindingDesc.inputRate = LayoutElemFrequencyToVkInputRate(LayoutElem.Frequency);
         }
 
-        const auto &BindingDesc = BindingDescriptions[BindingDescInd];
+        const auto& BindingDesc = BindingDescriptions[BindingDescInd];
         VERIFY(BindingDesc.binding == LayoutElem.BufferSlot, "Inconsistent buffer slot");
         VERIFY(BindingDesc.stride == LayoutElem.Stride, "Inconsistent strides");
         VERIFY(BindingDesc.inputRate == LayoutElemFrequencyToVkInputRate(LayoutElem.Frequency), "Incosistent layout element frequency");
 
-        auto &AttribDesc = AttributeDescription[elem];
-        AttribDesc.binding = BindingDesc.binding;
+        auto& AttribDesc    = AttributeDescription[elem];
+        AttribDesc.binding  = BindingDesc.binding;
         AttribDesc.location = LayoutElem.InputIndex;
-        AttribDesc.format = TypeToVkFormat(LayoutElem.ValueType, LayoutElem.NumComponents, LayoutElem.IsNormalized);
-        AttribDesc.offset = LayoutElem.RelativeOffset;
+        AttribDesc.format   = TypeToVkFormat(LayoutElem.ValueType, LayoutElem.NumComponents, LayoutElem.IsNormalized);
+        AttribDesc.offset   = LayoutElem.RelativeOffset;
     }
 }
 
-void PrimitiveTopology_To_VkPrimitiveTopologyAndPatchCPCount(PRIMITIVE_TOPOLOGY PrimTopology, 
-                                                             VkPrimitiveTopology &VkPrimTopology, 
-                                                             uint32_t &PatchControlPoints)
+void PrimitiveTopology_To_VkPrimitiveTopologyAndPatchCPCount(PRIMITIVE_TOPOLOGY   PrimTopology,
+                                                             VkPrimitiveTopology& VkPrimTopology,
+                                                             uint32_t&            PatchControlPoints)
 {
     PatchControlPoints = 0;
-    switch(PrimTopology)
+    switch (PrimTopology)
     {
-        case PRIMITIVE_TOPOLOGY_UNDEFINED: 
-            UNEXPECTED("Undefined primitive topology"); 
+        case PRIMITIVE_TOPOLOGY_UNDEFINED:
+            UNEXPECTED("Undefined primitive topology");
             VkPrimTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
             return;
 
         case PRIMITIVE_TOPOLOGY_TRIANGLE_LIST:
             VkPrimTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
             return;
-        
+
         case PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP:
             VkPrimTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
             return;
@@ -994,18 +1039,24 @@ void PrimitiveTopology_To_VkPrimitiveTopologyAndPatchCPCount(PRIMITIVE_TOPOLOGY 
         case PRIMITIVE_TOPOLOGY_LINE_LIST:
             VkPrimTopology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
             return;
-    }
 
-    VERIFY_EXPR(PrimTopology >= PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST && PrimTopology < PRIMITIVE_TOPOLOGY_NUM_TOPOLOGIES);
-    VkPrimTopology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
-    PatchControlPoints = static_cast<uint32_t>(PrimTopology) - static_cast<uint32_t>(PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST) + 1;
+        case PRIMITIVE_TOPOLOGY_LINE_STRIP:
+            VkPrimTopology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+            return;
+
+        default:
+            VERIFY_EXPR(PrimTopology >= PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST && PrimTopology < PRIMITIVE_TOPOLOGY_NUM_TOPOLOGIES);
+            VkPrimTopology     = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
+            PatchControlPoints = static_cast<uint32_t>(PrimTopology) - static_cast<uint32_t>(PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST) + 1;
+            return;
+    }
 }
 
 VkFilter FilterTypeToVkFilter(FILTER_TYPE FilterType)
 {
-    switch(FilterType)
+    switch (FilterType)
     {
-        case FILTER_TYPE_UNKNOWN: 
+        case FILTER_TYPE_UNKNOWN:
             UNEXPECTED("Unknown filter type");
             return VK_FILTER_NEAREST;
 
@@ -1021,7 +1072,7 @@ VkFilter FilterTypeToVkFilter(FILTER_TYPE FilterType)
         case FILTER_TYPE_COMPARISON_ANISOTROPIC:
         case FILTER_TYPE_MINIMUM_LINEAR:
         case FILTER_TYPE_MINIMUM_ANISOTROPIC:
-        case FILTER_TYPE_MAXIMUM_LINEAR:     
+        case FILTER_TYPE_MAXIMUM_LINEAR:
         case FILTER_TYPE_MAXIMUM_ANISOTROPIC:
             return VK_FILTER_LINEAR;
 
@@ -1063,17 +1114,19 @@ VkSamplerMipmapMode FilterTypeToVkMipmapMode(FILTER_TYPE FilterType)
 
 VkSamplerAddressMode AddressModeToVkAddressMode(TEXTURE_ADDRESS_MODE AddressMode)
 {
-    switch(AddressMode)
+    switch (AddressMode)
     {
         case TEXTURE_ADDRESS_UNKNOWN:
             UNEXPECTED("Unknown address mode");
             return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 
+        // clang-format off
         case TEXTURE_ADDRESS_WRAP:   return VK_SAMPLER_ADDRESS_MODE_REPEAT;
         case TEXTURE_ADDRESS_MIRROR: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
         case TEXTURE_ADDRESS_CLAMP:  return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         case TEXTURE_ADDRESS_BORDER: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
         case TEXTURE_ADDRESS_MIRROR_ONCE: return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
+            // clang-format on
 
         default:
             UNEXPECTED("Unexpected address mode");
@@ -1098,4 +1151,573 @@ VkBorderColor BorderColorToVkBorderColor(const Float32 BorderColor[])
     return vkBorderColor;
 }
 
+
+static VkPipelineStageFlags ResourceStateFlagToVkPipelineStage(RESOURCE_STATE StateFlag, VkPipelineStageFlags ShaderStages)
+{
+    static_assert(RESOURCE_STATE_MAX_BIT == RESOURCE_STATE_RAY_TRACING, "This function must be updated to handle new resource state flag");
+    VERIFY((StateFlag & (StateFlag - 1)) == 0, "Only single bit must be set");
+    switch (StateFlag)
+    {
+        // clang-format off
+        case RESOURCE_STATE_UNDEFINED:         return 0;
+        case RESOURCE_STATE_VERTEX_BUFFER:     return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+        case RESOURCE_STATE_CONSTANT_BUFFER:   return ShaderStages;
+        case RESOURCE_STATE_INDEX_BUFFER:      return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+        case RESOURCE_STATE_RENDER_TARGET:     return VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        case RESOURCE_STATE_UNORDERED_ACCESS:  return ShaderStages;
+        case RESOURCE_STATE_DEPTH_WRITE:       return VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        case RESOURCE_STATE_DEPTH_READ:        return VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        case RESOURCE_STATE_SHADER_RESOURCE:   return ShaderStages;
+        case RESOURCE_STATE_STREAM_OUT:        return 0;
+        case RESOURCE_STATE_INDIRECT_ARGUMENT: return VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+        case RESOURCE_STATE_COPY_DEST:         return VK_PIPELINE_STAGE_TRANSFER_BIT;
+        case RESOURCE_STATE_COPY_SOURCE:       return VK_PIPELINE_STAGE_TRANSFER_BIT;
+        case RESOURCE_STATE_RESOLVE_DEST:      return VK_PIPELINE_STAGE_TRANSFER_BIT;
+        case RESOURCE_STATE_RESOLVE_SOURCE:    return VK_PIPELINE_STAGE_TRANSFER_BIT;
+        case RESOURCE_STATE_INPUT_ATTACHMENT:  return VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        case RESOURCE_STATE_PRESENT:           return VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+        case RESOURCE_STATE_BUILD_AS_READ:     return VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
+        case RESOURCE_STATE_BUILD_AS_WRITE:    return VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
+        case RESOURCE_STATE_RAY_TRACING:       return VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+            // clang-format on
+
+        default:
+            UNEXPECTED("Unexpected resource state flag");
+            return 0;
+    }
 }
+
+VkPipelineStageFlags ResourceStateFlagsToVkPipelineStageFlags(RESOURCE_STATE StateFlags, VkPipelineStageFlags vkShaderStages)
+{
+    VERIFY(Uint32{StateFlags} < (RESOURCE_STATE_MAX_BIT << 1), "Resource state flags are out of range");
+
+    VkPipelineStageFlags vkPipelineStages = 0;
+    while (StateFlags != RESOURCE_STATE_UNKNOWN)
+    {
+        auto StateBit = static_cast<RESOURCE_STATE>(1 << PlatformMisc::GetLSB(Uint32{StateFlags}));
+        vkPipelineStages |= ResourceStateFlagToVkPipelineStage(StateBit, vkShaderStages);
+        StateFlags &= ~StateBit;
+    }
+    return vkPipelineStages;
+}
+
+
+static VkAccessFlags ResourceStateFlagToVkAccessFlags(RESOURCE_STATE StateFlag)
+{
+    // Currently not used:
+    //VK_ACCESS_HOST_READ_BIT
+    //VK_ACCESS_HOST_WRITE_BIT
+    //VK_ACCESS_MEMORY_READ_BIT
+    //VK_ACCESS_MEMORY_WRITE_BIT
+    //VK_ACCESS_TRANSFORM_FEEDBACK_COUNTER_READ_BIT_EXT
+    //VK_ACCESS_TRANSFORM_FEEDBACK_COUNTER_WRITE_BIT_EXT
+    //VK_ACCESS_CONDITIONAL_RENDERING_READ_BIT_EXT
+    //VK_ACCESS_COMMAND_PROCESS_READ_BIT_NVX
+    //VK_ACCESS_COMMAND_PROCESS_WRITE_BIT_NVX
+    //VK_ACCESS_COLOR_ATTACHMENT_READ_NONCOHERENT_BIT_EXT
+    //VK_ACCESS_SHADING_RATE_IMAGE_READ_BIT_NV
+
+    static_assert(RESOURCE_STATE_MAX_BIT == RESOURCE_STATE_RAY_TRACING, "This function must be updated to handle new resource state flag");
+    VERIFY((StateFlag & (StateFlag - 1)) == 0, "Only single bit must be set");
+    switch (StateFlag)
+    {
+        // clang-format off
+        case RESOURCE_STATE_UNDEFINED:         return 0;
+        case RESOURCE_STATE_VERTEX_BUFFER:     return VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+        case RESOURCE_STATE_CONSTANT_BUFFER:   return VK_ACCESS_UNIFORM_READ_BIT;
+        case RESOURCE_STATE_INDEX_BUFFER:      return VK_ACCESS_INDEX_READ_BIT;
+        case RESOURCE_STATE_RENDER_TARGET:     return VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        case RESOURCE_STATE_UNORDERED_ACCESS:  return VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT;
+        case RESOURCE_STATE_DEPTH_WRITE:       return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        case RESOURCE_STATE_DEPTH_READ:        return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+        case RESOURCE_STATE_SHADER_RESOURCE:   return VK_ACCESS_SHADER_READ_BIT;
+        case RESOURCE_STATE_STREAM_OUT:        return VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT;
+        case RESOURCE_STATE_INDIRECT_ARGUMENT: return VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+        case RESOURCE_STATE_COPY_DEST:         return VK_ACCESS_TRANSFER_WRITE_BIT;
+        case RESOURCE_STATE_COPY_SOURCE:       return VK_ACCESS_TRANSFER_READ_BIT;
+        case RESOURCE_STATE_RESOLVE_DEST:      return VK_ACCESS_TRANSFER_WRITE_BIT;
+        case RESOURCE_STATE_RESOLVE_SOURCE:    return VK_ACCESS_TRANSFER_READ_BIT;
+        case RESOURCE_STATE_INPUT_ATTACHMENT:  return VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+        case RESOURCE_STATE_PRESENT:           return 0;
+        case RESOURCE_STATE_BUILD_AS_READ:     return VK_ACCESS_SHADER_READ_BIT; // for vertex, index, transform, AABB, instance buffers
+        case RESOURCE_STATE_BUILD_AS_WRITE:    return VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR; // for scratch buffer
+        case RESOURCE_STATE_RAY_TRACING:       return VK_ACCESS_SHADER_READ_BIT; // for SBT
+            // clang-format on
+
+        default:
+            UNEXPECTED("Unexpected resource state flag");
+            return 0;
+    }
+}
+
+class StateFlagBitPosToVkAccessFlags
+{
+public:
+    StateFlagBitPosToVkAccessFlags()
+    {
+        static_assert((1 << MaxFlagBitPos) == RESOURCE_STATE_MAX_BIT, "This function must be updated to handle new resource state flag");
+        for (Uint32 bit = 0; bit < FlagBitPosToVkAccessFlagsMap.size(); ++bit)
+        {
+            FlagBitPosToVkAccessFlagsMap[bit] = ResourceStateFlagToVkAccessFlags(static_cast<RESOURCE_STATE>(1 << bit));
+        }
+    }
+
+    VkAccessFlags operator()(Uint32 BitPos) const
+    {
+        VERIFY(BitPos <= MaxFlagBitPos, "Resource state flag bit position (", BitPos, ") exceeds max bit position (", Uint32{MaxFlagBitPos}, ")");
+        return FlagBitPosToVkAccessFlagsMap[BitPos];
+    }
+
+private:
+    static constexpr const Uint32                MaxFlagBitPos = 19;
+    std::array<VkAccessFlags, MaxFlagBitPos + 1> FlagBitPosToVkAccessFlagsMap;
+};
+
+
+VkAccessFlags ResourceStateFlagsToVkAccessFlags(RESOURCE_STATE StateFlags)
+{
+    VERIFY(Uint32{StateFlags} < (RESOURCE_STATE_MAX_BIT << 1), "Resource state flags are out of range");
+    static const StateFlagBitPosToVkAccessFlags BitPosToAccessFlags;
+
+    VkAccessFlags AccessFlags = 0;
+    Uint32        Bits        = StateFlags;
+    while (Bits != 0)
+    {
+        auto lsb = PlatformMisc::GetLSB(Bits);
+        AccessFlags |= BitPosToAccessFlags(lsb);
+        Bits &= ~(1 << lsb);
+    }
+    return AccessFlags;
+}
+
+VkAccessFlags AccelStructStateFlagsToVkAccessFlags(RESOURCE_STATE StateFlags)
+{
+    VERIFY(Uint32{StateFlags} < (RESOURCE_STATE_MAX_BIT << 1), "Resource state flags are out of range");
+    static_assert(RESOURCE_STATE_MAX_BIT == RESOURCE_STATE_RAY_TRACING, "This function must be updated to handle new resource state flag");
+
+    VkAccessFlags AccessFlags = 0;
+    Uint32        Bits        = StateFlags;
+    while (Bits != 0)
+    {
+        auto Bit = static_cast<RESOURCE_STATE>(1 << PlatformMisc::GetLSB(Bits));
+        switch (Bit)
+        {
+            // clang-format off
+            case RESOURCE_STATE_BUILD_AS_READ:  AccessFlags |= VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR; break;
+            case RESOURCE_STATE_BUILD_AS_WRITE: AccessFlags |= VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR; break;
+            case RESOURCE_STATE_RAY_TRACING:    AccessFlags |= VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR; break;
+            default:                            UNEXPECTED("Unexpected resource state flag");
+                // clang-format on
+        }
+        Bits &= ~Bit;
+    }
+    return AccessFlags;
+}
+
+static RESOURCE_STATE VkAccessFlagToResourceStates(VkAccessFlagBits AccessFlagBit)
+{
+    VERIFY((AccessFlagBit & (AccessFlagBit - 1)) == 0, "Single access flag bit is expected");
+
+    switch (AccessFlagBit)
+    {
+        // clang-format off
+        case VK_ACCESS_INDIRECT_COMMAND_READ_BIT:                 return RESOURCE_STATE_INDIRECT_ARGUMENT;
+        case VK_ACCESS_INDEX_READ_BIT:                            return RESOURCE_STATE_INDEX_BUFFER;
+        case VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT:                 return RESOURCE_STATE_VERTEX_BUFFER;
+        case VK_ACCESS_UNIFORM_READ_BIT:                          return RESOURCE_STATE_CONSTANT_BUFFER;
+        case VK_ACCESS_INPUT_ATTACHMENT_READ_BIT:                 return RESOURCE_STATE_INPUT_ATTACHMENT;
+        case VK_ACCESS_SHADER_READ_BIT:                           return RESOURCE_STATE_SHADER_RESOURCE; // or RESOURCE_STATE_BUILD_AS_READ
+        case VK_ACCESS_SHADER_WRITE_BIT:                          return RESOURCE_STATE_UNORDERED_ACCESS;
+        case VK_ACCESS_COLOR_ATTACHMENT_READ_BIT:                 return RESOURCE_STATE_RENDER_TARGET;
+        case VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT:                return RESOURCE_STATE_RENDER_TARGET;
+        case VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT:         return RESOURCE_STATE_DEPTH_READ;
+        case VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT:        return RESOURCE_STATE_DEPTH_WRITE;
+        case VK_ACCESS_TRANSFER_READ_BIT:                         return RESOURCE_STATE_COPY_SOURCE;
+        case VK_ACCESS_TRANSFER_WRITE_BIT:                        return RESOURCE_STATE_COPY_DEST;
+        case VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR:      return RESOURCE_STATE_BUILD_AS_WRITE;
+        case VK_ACCESS_HOST_READ_BIT:                             return RESOURCE_STATE_UNKNOWN;
+        case VK_ACCESS_HOST_WRITE_BIT:                            return RESOURCE_STATE_UNKNOWN;
+        case VK_ACCESS_MEMORY_READ_BIT:                           return RESOURCE_STATE_UNKNOWN;
+        case VK_ACCESS_MEMORY_WRITE_BIT:                          return RESOURCE_STATE_UNKNOWN;
+        case VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT:          return RESOURCE_STATE_UNKNOWN;
+        case VK_ACCESS_TRANSFORM_FEEDBACK_COUNTER_READ_BIT_EXT:   return RESOURCE_STATE_UNKNOWN;
+        case VK_ACCESS_TRANSFORM_FEEDBACK_COUNTER_WRITE_BIT_EXT:  return RESOURCE_STATE_UNKNOWN;
+        case VK_ACCESS_CONDITIONAL_RENDERING_READ_BIT_EXT:        return RESOURCE_STATE_UNKNOWN;
+        case VK_ACCESS_COMMAND_PREPROCESS_READ_BIT_NV:            return RESOURCE_STATE_UNKNOWN;
+        case VK_ACCESS_COMMAND_PREPROCESS_WRITE_BIT_NV:           return RESOURCE_STATE_UNKNOWN;
+        case VK_ACCESS_COLOR_ATTACHMENT_READ_NONCOHERENT_BIT_EXT: return RESOURCE_STATE_UNKNOWN;
+        case VK_ACCESS_SHADING_RATE_IMAGE_READ_BIT_NV:            return RESOURCE_STATE_UNKNOWN;
+            // clang-format on
+        default:
+            UNEXPECTED("Unknown access flag");
+            return RESOURCE_STATE_UNKNOWN;
+    }
+}
+
+
+class VkAccessFlagBitPosToResourceState
+{
+public:
+    VkAccessFlagBitPosToResourceState()
+    {
+        for (Uint32 bit = 0; bit < FlagBitPosToResourceState.size(); ++bit)
+        {
+            FlagBitPosToResourceState[bit] = VkAccessFlagToResourceStates(static_cast<VkAccessFlagBits>(1 << bit));
+        }
+    }
+
+    RESOURCE_STATE operator()(Uint32 BitPos) const
+    {
+        VERIFY(BitPos <= MaxFlagBitPos, "Resource state flag bit position (", BitPos, ") exceeds max bit position (", Uint32{MaxFlagBitPos}, ")");
+        return FlagBitPosToResourceState[BitPos];
+    }
+
+private:
+    static constexpr const Uint32                 MaxFlagBitPos = 20;
+    std::array<RESOURCE_STATE, MaxFlagBitPos + 1> FlagBitPosToResourceState;
+};
+
+
+RESOURCE_STATE VkAccessFlagsToResourceStates(VkAccessFlags AccessFlags)
+{
+    static const VkAccessFlagBitPosToResourceState BitPosToState;
+    Uint32                                         State = 0;
+    while (AccessFlags != 0)
+    {
+        auto lsb = PlatformMisc::GetLSB(AccessFlags);
+        State |= BitPosToState(lsb);
+        AccessFlags &= ~(1 << lsb);
+    }
+    return static_cast<RESOURCE_STATE>(State);
+}
+
+
+
+VkImageLayout ResourceStateToVkImageLayout(RESOURCE_STATE StateFlag, bool IsInsideRenderPass)
+{
+    if (StateFlag == RESOURCE_STATE_UNKNOWN)
+    {
+        return VK_IMAGE_LAYOUT_UNDEFINED;
+    }
+    // Currently not used:
+    //VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL
+    //VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL
+    //VK_IMAGE_LAYOUT_SHADING_RATE_OPTIMAL_NV
+    //VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL_KHR = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL,
+    //VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL_KHR = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL,
+
+    static_assert(RESOURCE_STATE_MAX_BIT == RESOURCE_STATE_RAY_TRACING, "This function must be updated to handle new resource state flag");
+    VERIFY((StateFlag & (StateFlag - 1)) == 0, "Only single bit must be set");
+    switch (StateFlag)
+    {
+        // clang-format off
+        case RESOURCE_STATE_UNDEFINED:         return VK_IMAGE_LAYOUT_UNDEFINED;
+        case RESOURCE_STATE_VERTEX_BUFFER:     UNEXPECTED("Invalid resource state"); return VK_IMAGE_LAYOUT_UNDEFINED;
+        case RESOURCE_STATE_CONSTANT_BUFFER:   UNEXPECTED("Invalid resource state"); return VK_IMAGE_LAYOUT_UNDEFINED;
+        case RESOURCE_STATE_INDEX_BUFFER:      UNEXPECTED("Invalid resource state"); return VK_IMAGE_LAYOUT_UNDEFINED;
+        case RESOURCE_STATE_RENDER_TARGET:     return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        case RESOURCE_STATE_UNORDERED_ACCESS:  return VK_IMAGE_LAYOUT_GENERAL;
+        case RESOURCE_STATE_DEPTH_WRITE:       return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        case RESOURCE_STATE_DEPTH_READ:        return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+        case RESOURCE_STATE_SHADER_RESOURCE:   return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        case RESOURCE_STATE_STREAM_OUT:        UNEXPECTED("Invalid resource state"); return VK_IMAGE_LAYOUT_UNDEFINED;
+        case RESOURCE_STATE_INDIRECT_ARGUMENT: UNEXPECTED("Invalid resource state"); return VK_IMAGE_LAYOUT_UNDEFINED;
+        case RESOURCE_STATE_COPY_DEST:         return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        case RESOURCE_STATE_COPY_SOURCE:       return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        case RESOURCE_STATE_RESOLVE_DEST:      return IsInsideRenderPass ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        case RESOURCE_STATE_RESOLVE_SOURCE:    return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        case RESOURCE_STATE_INPUT_ATTACHMENT:  return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        case RESOURCE_STATE_PRESENT:           return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        case RESOURCE_STATE_BUILD_AS_READ:     UNEXPECTED("Invalid resource state"); return VK_IMAGE_LAYOUT_UNDEFINED;
+        case RESOURCE_STATE_BUILD_AS_WRITE:    UNEXPECTED("Invalid resource state"); return VK_IMAGE_LAYOUT_UNDEFINED;
+        case RESOURCE_STATE_RAY_TRACING:       UNEXPECTED("Invalid resource state"); return VK_IMAGE_LAYOUT_UNDEFINED;
+            // clang-format on
+
+        default:
+            UNEXPECTED("Unexpected resource state flag (", StateFlag, ")");
+            return VK_IMAGE_LAYOUT_UNDEFINED;
+    }
+}
+
+RESOURCE_STATE VkImageLayoutToResourceState(VkImageLayout Layout)
+{
+    static_assert(RESOURCE_STATE_MAX_BIT == RESOURCE_STATE_RAY_TRACING, "This function must be updated to handle new resource state flag");
+    switch (Layout)
+    {
+        // clang-format off
+        case VK_IMAGE_LAYOUT_UNDEFINED:                                  return RESOURCE_STATE_UNDEFINED;
+        case VK_IMAGE_LAYOUT_GENERAL:                                    return RESOURCE_STATE_UNORDERED_ACCESS;
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:                   return RESOURCE_STATE_RENDER_TARGET;
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:           return RESOURCE_STATE_DEPTH_WRITE;
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:            return RESOURCE_STATE_DEPTH_READ;
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:                   return RESOURCE_STATE_SHADER_RESOURCE;
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:                       return RESOURCE_STATE_COPY_SOURCE;
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:                       return RESOURCE_STATE_COPY_DEST;
+        case VK_IMAGE_LAYOUT_PREINITIALIZED:                             UNEXPECTED("This layout is not supported"); return RESOURCE_STATE_UNDEFINED;
+        case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL: UNEXPECTED("This layout is not supported"); return RESOURCE_STATE_UNDEFINED;
+        case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL: UNEXPECTED("This layout is not supported"); return RESOURCE_STATE_UNDEFINED;
+        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:                            return RESOURCE_STATE_PRESENT;
+        case VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR:                         UNEXPECTED("This layout is not supported"); return RESOURCE_STATE_UNDEFINED;
+        case VK_IMAGE_LAYOUT_SHADING_RATE_OPTIMAL_NV:                    UNEXPECTED("This layout is not supported"); return RESOURCE_STATE_UNDEFINED;
+        default:
+            UNEXPECTED("Unknown image layout (", Layout, ")");
+            return RESOURCE_STATE_UNDEFINED;
+            // clang-format on
+    }
+}
+
+SURFACE_TRANSFORM VkSurfaceTransformFlagToSurfaceTransform(VkSurfaceTransformFlagBitsKHR vkTransformFlag)
+{
+    VERIFY(IsPowerOfTwo(static_cast<Uint32>(vkTransformFlag)), "Only single transform bit is expected");
+
+    // clang-format off
+    switch (vkTransformFlag)
+    {
+        case VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR:                     return SURFACE_TRANSFORM_IDENTITY;
+        case VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR:                    return SURFACE_TRANSFORM_ROTATE_90;
+        case VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR:                   return SURFACE_TRANSFORM_ROTATE_180;
+        case VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR:                   return SURFACE_TRANSFORM_ROTATE_270;
+        case VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR:            return SURFACE_TRANSFORM_HORIZONTAL_MIRROR;
+        case VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR:  return SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90;
+        case VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR: return SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180;
+        case VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR: return SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270;
+
+        default:
+            UNEXPECTED("Unexpected surface transform");
+            return SURFACE_TRANSFORM_IDENTITY;
+    }
+    // clang-format on
+}
+
+VkSurfaceTransformFlagBitsKHR SurfaceTransformToVkSurfaceTransformFlag(SURFACE_TRANSFORM SrfTransform)
+{
+    // clang-format off
+    switch (SrfTransform)
+    {
+        case SURFACE_TRANSFORM_OPTIMAL:
+            UNEXPECTED("Optimal transform does not have corresponding Vulkan flag");
+            return VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+
+        case SURFACE_TRANSFORM_IDENTITY:                      return VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+        case SURFACE_TRANSFORM_ROTATE_90:                     return VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR;
+        case SURFACE_TRANSFORM_ROTATE_180:                    return VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR;
+        case SURFACE_TRANSFORM_ROTATE_270:                    return VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR;
+        case SURFACE_TRANSFORM_HORIZONTAL_MIRROR:             return VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR;
+        case SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90:   return VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR;
+        case SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180:  return VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR;
+        case SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270:  return VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR; 
+
+        default:
+            UNEXPECTED("Unexpected surface transform");
+            return VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    }
+    // clang-format on
+}
+
+
+#define ASSERT_SAME(Val1, Val2) static_assert(static_cast<int>(Val1) == static_cast<int>(Val2), #Val1 " is expected to be equal to " #Val2)
+
+ASSERT_SAME(ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_LOAD_OP_LOAD);
+ASSERT_SAME(ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_LOAD_OP_CLEAR);
+ASSERT_SAME(ATTACHMENT_LOAD_OP_DISCARD, VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+VkAttachmentLoadOp AttachmentLoadOpToVkAttachmentLoadOp(ATTACHMENT_LOAD_OP LoadOp)
+{
+    return static_cast<VkAttachmentLoadOp>(LoadOp);
+}
+ATTACHMENT_LOAD_OP VkAttachmentLoadOpToAttachmentLoadOp(VkAttachmentLoadOp VkLoadOp)
+{
+    return static_cast<ATTACHMENT_LOAD_OP>(VkLoadOp);
+}
+
+
+ASSERT_SAME(ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_STORE_OP_STORE);
+ASSERT_SAME(ATTACHMENT_STORE_OP_DISCARD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
+VkAttachmentStoreOp AttachmentStoreOpToVkAttachmentStoreOp(ATTACHMENT_STORE_OP StoreOp)
+{
+    return static_cast<VkAttachmentStoreOp>(StoreOp);
+}
+ATTACHMENT_STORE_OP VkAttachmentStoreOpToAttachmentStoreOp(VkAttachmentStoreOp VkStoreOp)
+{
+    return static_cast<ATTACHMENT_STORE_OP>(VkStoreOp);
+}
+
+
+// clang-format off
+ASSERT_SAME(PIPELINE_STAGE_FLAG_TOP_OF_PIPE,                  VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_DRAW_INDIRECT,                VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_VERTEX_INPUT,                 VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_VERTEX_SHADER,                VK_PIPELINE_STAGE_VERTEX_SHADER_BIT);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_HULL_SHADER,                  VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_DOMAIN_SHADER,                VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_GEOMETRY_SHADER,              VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_PIXEL_SHADER,                 VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_EARLY_FRAGMENT_TESTS,         VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_LATE_FRAGMENT_TESTS,          VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_RENDER_TARGET,                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_COMPUTE_SHADER,               VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_TRANSFER,                     VK_PIPELINE_STAGE_TRANSFER_BIT);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_BOTTOM_OF_PIPE,               VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_HOST,                         VK_PIPELINE_STAGE_HOST_BIT);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_CONDITIONAL_RENDERING,        VK_PIPELINE_STAGE_CONDITIONAL_RENDERING_BIT_EXT);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_SHADING_RATE_TEXTURE,         VK_PIPELINE_STAGE_SHADING_RATE_IMAGE_BIT_NV);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_RAY_TRACING_SHADER,           VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_ACCELERATION_STRUCTURE_BUILD, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_TASK_SHADER,                  VK_PIPELINE_STAGE_TASK_SHADER_BIT_NV);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_MESH_SHADER,                  VK_PIPELINE_STAGE_MESH_SHADER_BIT_NV);
+ASSERT_SAME(PIPELINE_STAGE_FLAG_FRAGMENT_DENSITY_PROCESS,     VK_PIPELINE_STAGE_FRAGMENT_DENSITY_PROCESS_BIT_EXT);
+// clang-format on
+VkPipelineStageFlags PipelineStageFlagsToVkPipelineStageFlags(PIPELINE_STAGE_FLAGS PipelineStageFlags)
+{
+    return static_cast<VkPipelineStageFlags>(PipelineStageFlags);
+}
+
+
+// clang-format off
+static_assert(ACCESS_FLAG_NONE == 0, "");
+ASSERT_SAME(ACCESS_FLAG_INDIRECT_COMMAND_READ,        VK_ACCESS_INDIRECT_COMMAND_READ_BIT);
+ASSERT_SAME(ACCESS_FLAG_INDEX_READ,                   VK_ACCESS_INDEX_READ_BIT);
+ASSERT_SAME(ACCESS_FLAG_VERTEX_READ,                  VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT);
+ASSERT_SAME(ACCESS_FLAG_UNIFORM_READ,                 VK_ACCESS_UNIFORM_READ_BIT);
+ASSERT_SAME(ACCESS_FLAG_INPUT_ATTACHMENT_READ,        VK_ACCESS_INPUT_ATTACHMENT_READ_BIT);
+ASSERT_SAME(ACCESS_FLAG_SHADER_READ,                  VK_ACCESS_SHADER_READ_BIT);
+ASSERT_SAME(ACCESS_FLAG_SHADER_WRITE,                 VK_ACCESS_SHADER_WRITE_BIT);
+ASSERT_SAME(ACCESS_FLAG_RENDER_TARGET_READ,           VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
+ASSERT_SAME(ACCESS_FLAG_RENDER_TARGET_WRITE,          VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
+ASSERT_SAME(ACCESS_FLAG_DEPTH_STENCIL_READ,           VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT);
+ASSERT_SAME(ACCESS_FLAG_DEPTH_STENCIL_WRITE,          VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
+ASSERT_SAME(ACCESS_FLAG_COPY_SRC,                     VK_ACCESS_TRANSFER_READ_BIT);
+ASSERT_SAME(ACCESS_FLAG_COPY_DST,                     VK_ACCESS_TRANSFER_WRITE_BIT);
+ASSERT_SAME(ACCESS_FLAG_HOST_READ,                    VK_ACCESS_HOST_READ_BIT);
+ASSERT_SAME(ACCESS_FLAG_HOST_WRITE,                   VK_ACCESS_HOST_WRITE_BIT);
+ASSERT_SAME(ACCESS_FLAG_MEMORY_READ,                  VK_ACCESS_MEMORY_READ_BIT);
+ASSERT_SAME(ACCESS_FLAG_MEMORY_WRITE,                 VK_ACCESS_MEMORY_WRITE_BIT);
+ASSERT_SAME(ACCESS_FLAG_CONDITIONAL_RENDERING_READ,   VK_ACCESS_CONDITIONAL_RENDERING_READ_BIT_EXT);
+ASSERT_SAME(ACCESS_FLAG_SHADING_RATE_TEXTURE_READ,    VK_ACCESS_SHADING_RATE_IMAGE_READ_BIT_NV);
+ASSERT_SAME(ACCESS_FLAG_ACCELERATION_STRUCTURE_READ,  VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV);
+ASSERT_SAME(ACCESS_FLAG_ACCELERATION_STRUCTURE_WRITE, VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV);
+ASSERT_SAME(ACCESS_FLAG_FRAGMENT_DENSITY_MAP_READ,    VK_ACCESS_FRAGMENT_DENSITY_MAP_READ_BIT_EXT);
+// clang-format on
+VkAccessFlags AccessFlagsToVkAccessFlags(ACCESS_FLAGS AccessFlags)
+{
+    return static_cast<VkAccessFlags>(AccessFlags);
+}
+#undef ASSERT_SAME
+
+
+VkShaderStageFlagBits ShaderTypeToVkShaderStageFlagBit(SHADER_TYPE ShaderType)
+{
+    static_assert(SHADER_TYPE_LAST == SHADER_TYPE_CALLABLE, "Please update the switch below to handle the new shader type");
+    VERIFY(IsPowerOfTwo(Uint32{ShaderType}), "More than one shader type is specified");
+    switch (ShaderType)
+    {
+        // clang-format off
+        case SHADER_TYPE_VERTEX:           return VK_SHADER_STAGE_VERTEX_BIT;
+        case SHADER_TYPE_HULL:             return VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+        case SHADER_TYPE_DOMAIN:           return VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+        case SHADER_TYPE_GEOMETRY:         return VK_SHADER_STAGE_GEOMETRY_BIT;
+        case SHADER_TYPE_PIXEL:            return VK_SHADER_STAGE_FRAGMENT_BIT;
+        case SHADER_TYPE_COMPUTE:          return VK_SHADER_STAGE_COMPUTE_BIT;
+        case SHADER_TYPE_AMPLIFICATION:    return VK_SHADER_STAGE_TASK_BIT_NV;
+        case SHADER_TYPE_MESH:             return VK_SHADER_STAGE_MESH_BIT_NV;
+        case SHADER_TYPE_RAY_GEN:          return VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+        case SHADER_TYPE_RAY_MISS:         return VK_SHADER_STAGE_MISS_BIT_KHR;
+        case SHADER_TYPE_RAY_CLOSEST_HIT:  return VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+        case SHADER_TYPE_RAY_ANY_HIT:      return VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
+        case SHADER_TYPE_RAY_INTERSECTION: return VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
+        case SHADER_TYPE_CALLABLE:         return VK_SHADER_STAGE_CALLABLE_BIT_KHR;
+        // clang-format on
+        default:
+            UNEXPECTED("Unknown shader type");
+            return VK_SHADER_STAGE_VERTEX_BIT;
+    }
+}
+
+VkBuildAccelerationStructureFlagsKHR BuildASFlagsToVkBuildAccelerationStructureFlags(RAYTRACING_BUILD_AS_FLAGS Flags)
+{
+    static_assert(RAYTRACING_BUILD_AS_FLAGS_LAST == RAYTRACING_BUILD_AS_LOW_MEMORY,
+                  "Please update the switch below to handle the new ray tracing build flag");
+
+    VkBuildAccelerationStructureFlagsKHR Result = 0;
+    while (Flags != RAYTRACING_BUILD_AS_NONE)
+    {
+        auto FlagBit = static_cast<RAYTRACING_BUILD_AS_FLAGS>(1 << PlatformMisc::GetLSB(Uint32{Flags}));
+        switch (FlagBit)
+        {
+            // clang-format off
+            case RAYTRACING_BUILD_AS_ALLOW_UPDATE:      Result |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;      break;
+            case RAYTRACING_BUILD_AS_ALLOW_COMPACTION:  Result |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;  break;
+            case RAYTRACING_BUILD_AS_PREFER_FAST_TRACE: Result |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR; break;
+            case RAYTRACING_BUILD_AS_PREFER_FAST_BUILD: Result |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR; break;
+            case RAYTRACING_BUILD_AS_LOW_MEMORY:        Result |= VK_BUILD_ACCELERATION_STRUCTURE_LOW_MEMORY_BIT_KHR;        break;
+            // clang-format on
+            default: UNEXPECTED("unknown build AS flag");
+        }
+        Flags = Flags & ~FlagBit;
+    }
+    return Result;
+}
+
+VkGeometryFlagsKHR GeometryFlagsToVkGeometryFlags(RAYTRACING_GEOMETRY_FLAGS Flags)
+{
+    static_assert(RAYTRACING_GEOMETRY_FLAGS_LAST == RAYTRACING_GEOMETRY_FLAG_NO_DUPLICATE_ANY_HIT_INVOCATION,
+                  "Please update the switch below to handle the new ray tracing geometry flag");
+
+    VkGeometryFlagsKHR Result = 0;
+    while (Flags != RAYTRACING_GEOMETRY_FLAG_NONE)
+    {
+        auto FlagBit = static_cast<RAYTRACING_GEOMETRY_FLAGS>(1 << PlatformMisc::GetLSB(Uint32{Flags}));
+        switch (FlagBit)
+        {
+            // clang-format off
+            case RAYTRACING_GEOMETRY_FLAG_OPAQUE:                          Result |= VK_GEOMETRY_OPAQUE_BIT_KHR; break;
+            case RAYTRACING_GEOMETRY_FLAG_NO_DUPLICATE_ANY_HIT_INVOCATION: Result |= VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR; break;
+            // clang-format on
+            default: UNEXPECTED("unknown geometry flag");
+        }
+        Flags = Flags & ~FlagBit;
+    }
+    return Result;
+}
+
+VkGeometryInstanceFlagsKHR InstanceFlagsToVkGeometryInstanceFlags(RAYTRACING_INSTANCE_FLAGS Flags)
+{
+    static_assert(RAYTRACING_INSTANCE_FLAGS_LAST == RAYTRACING_INSTANCE_FORCE_NO_OPAQUE,
+                  "Please update the switch below to handle the new ray tracing instance flag");
+
+    VkGeometryInstanceFlagsKHR Result = 0;
+    while (Flags != RAYTRACING_INSTANCE_NONE)
+    {
+        auto FlagBit = static_cast<RAYTRACING_INSTANCE_FLAGS>(1 << PlatformMisc::GetLSB(Uint32{Flags}));
+        switch (FlagBit)
+        {
+            // clang-format off
+            case RAYTRACING_INSTANCE_TRIANGLE_FACING_CULL_DISABLE:    Result |= VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR; break;
+            case RAYTRACING_INSTANCE_TRIANGLE_FRONT_COUNTERCLOCKWISE: Result |= VK_GEOMETRY_INSTANCE_TRIANGLE_FRONT_COUNTERCLOCKWISE_BIT_KHR; break;
+            case RAYTRACING_INSTANCE_FORCE_OPAQUE:                    Result |= VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR; break;
+            case RAYTRACING_INSTANCE_FORCE_NO_OPAQUE:                 Result |= VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR; break;
+            // clang-format on
+            default: UNEXPECTED("unknown instance flag");
+        }
+        Flags = Flags & ~FlagBit;
+    }
+    return Result;
+}
+
+VkCopyAccelerationStructureModeKHR CopyASModeToVkCopyAccelerationStructureMode(COPY_AS_MODE Mode)
+{
+    static_assert(COPY_AS_MODE_LAST == COPY_AS_MODE_COMPACT,
+                  "Please update the switch below to handle the new copy AS mode");
+
+    switch (Mode)
+    {
+        // clang-format off
+        case COPY_AS_MODE_CLONE:   return VK_COPY_ACCELERATION_STRUCTURE_MODE_CLONE_KHR;
+        case COPY_AS_MODE_COMPACT: return VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR;
+        // clang-format on
+        default:
+            UNEXPECTED("unknown AS copy mode");
+            return VK_COPY_ACCELERATION_STRUCTURE_MODE_MAX_ENUM_KHR;
+    }
+}
+
+} // namespace Diligent
